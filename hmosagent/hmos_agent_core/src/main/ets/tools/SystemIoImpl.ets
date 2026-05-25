@@ -15,10 +15,10 @@ export class SystemIoImpl {
    * Perform a blocking HTTP POST and return the response body as a string.
    * Called from Rust's post_fn → post_fn_proxy → tsfn → this method.
    */
-  public httpPost(url: string, body: string): string {
+  public async httpPost(url: string, body: string): Promise<string> {
     try {
-      const request = http.createHttp();
-      const response = request.requestSync(url, {
+      const request: http.HttpRequest = http.createHttp();
+      const response: http.HttpResponse = await request.request(url, {
         method: http.RequestMethod.POST,
         header: {
           'Content-Type': 'application/json',
@@ -36,13 +36,31 @@ export class SystemIoImpl {
         ? response.result
         : JSON.stringify(response.result);
     } catch (err) {
-      const e = err as BusinessError;
+      const e: BusinessError = err as BusinessError;
       return JSON.stringify({
         status: 'error',
         error: `HTTP POST failed: ${e.message}`,
         code: e.code,
       });
     }
+  }
+
+  private utf8BytesToString(bytes: Uint8Array): string {
+    let result = '';
+    let i = 0;
+    while (i < bytes.length) {
+      const byte = bytes[i];
+      let codePoint: number;
+      let advance: number;
+      if (byte < 0x80) { codePoint = byte; advance = 1; }
+      else if ((byte & 0xE0) === 0xC0) { codePoint = ((byte & 0x1F) << 6) | (bytes[i + 1] & 0x3F); advance = 2; }
+      else if ((byte & 0xF0) === 0xE0) { codePoint = ((byte & 0x0F) << 12) | ((bytes[i + 1] & 0x3F) << 6) | (bytes[i + 2] & 0x3F); advance = 3; }
+      else if ((byte & 0xF8) === 0xF0) { codePoint = ((byte & 0x07) << 18) | ((bytes[i + 1] & 0x3F) << 12) | ((bytes[i + 2] & 0x3F) << 6) | (bytes[i + 3] & 0x3F); advance = 4; }
+      else { i++; continue; }
+      result += String.fromCodePoint(codePoint);
+      i += advance;
+    }
+    return result;
   }
 
   /**
@@ -55,7 +73,7 @@ export class SystemIoImpl {
       const buf = new ArrayBuffer(stat.size);
       fs.readSync(file.fd, buf);
       fs.closeSync(file);
-      return String.fromCharCode(...new Uint8Array(buf));
+      return this.utf8BytesToString(new Uint8Array(buf));
     } catch (err) {
       const e = err as BusinessError;
       return JSON.stringify({

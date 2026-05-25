@@ -4,9 +4,18 @@ type StreamCallback = (data: string, eventType: number) => void;
 type IoCallback = (url: string, body: string) => string;
 
 export class RustAgentBridge {
+  private static instance: RustAgentBridge | null = null;
+
   private streamCallback: StreamCallback | null = null;
   private ioCallback: IoCallback | null = null;
   private initialized: boolean = false;
+
+  static getInstance(): RustAgentBridge {
+    if (RustAgentBridge.instance === null) {
+      RustAgentBridge.instance = new RustAgentBridge();
+    }
+    return RustAgentBridge.instance;
+  }
 
   /**
    * Initialize the Rust agent core with stream-only callback (Phase 0 compat).
@@ -88,5 +97,22 @@ export class RustAgentBridge {
    */
   public scanDir(dirPath: string): string {
     return nativeBridge.scanDir(dirPath);
+  }
+
+  /**
+   * Abort the current generation. Sets the ABORT_FLAG in Rust core,
+   * causing the ReAct loop to stop at the next iteration boundary.
+   */
+  public abort(): string {
+    return this.call("abort", "{}");
+  }
+
+  /**
+   * Reset the abort flag before starting a new generation.
+   * Must be called by the TS side before sending a new prompt
+   * to clear any stale abort signal.
+   */
+  public resetAbort(): string {
+    return this.call("reset_abort", "{}");
   }
 }

@@ -1,5 +1,7 @@
+use crate::agent::abort::ABORT_FLAG;
 use sha2::{Digest, Sha256};
 use std::collections::VecDeque;
+use std::sync::atomic::Ordering;
 
 /// Max allowed iterations before hard-stop (safety net).
 const MAX_ITERATIONS: u32 = 30;
@@ -89,7 +91,7 @@ impl AgentLoop {
 
     /// Returns true when the loop may continue.
     pub fn can_continue(&self) -> bool {
-        self.iteration < MAX_ITERATIONS
+        !ABORT_FLAG.load(Ordering::Relaxed) && self.iteration < MAX_ITERATIONS
     }
 
     /// Register a tool call in the sliding-window detector.

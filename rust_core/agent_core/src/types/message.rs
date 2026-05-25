@@ -2,11 +2,19 @@ use serde::{Deserialize, Serialize};
 
 // ── Agent Request & Response (Phase 0, preserved) ──
 
+/// Simple OpenAI-compatible message for LLM chat requests.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
 /// Incoming request from the host (ArkTS via NAPI).
 /// The action is passed separately as a C string; the JSON body is untagged.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgentRequest {
+    ChatStream { messages: Vec<ChatMessage> },
     RunStep { messages: Vec<Message> },
     LoadSession { session_id: String },
     TestStream {

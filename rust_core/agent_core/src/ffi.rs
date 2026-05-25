@@ -26,7 +26,7 @@ pub struct SystemCallbacks {
     pub free_str_fn: Option<FreeStrFn>,
 }
 
-static CALLBACKS: OnceLock<SystemCallbacks> = OnceLock::new();
+pub static CALLBACKS: OnceLock<SystemCallbacks> = OnceLock::new();
 
 /// Initialize the Rust core with host IO capabilities.
 /// Must be called exactly once before any other FFI call.

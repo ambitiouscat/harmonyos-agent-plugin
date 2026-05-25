@@ -1,8 +1,7 @@
-import { ArkMessage } from '../models/ArkMessage';
-import { ArkContentPart } from '../models/ArkContentPart';
+import { ArkMessage, ArkContentPart } from '../models';
 import { MarkdownView } from './MarkdownView';
-import { ThinkingPanel } from '../common/ThinkingPanel';
-import { ToolCard } from '../tools/ToolCard';
+import { ThinkingPanel } from '../common';
+import { ToolCard } from '../tools';
 
 @ComponentV2
 export struct MessageBubble {

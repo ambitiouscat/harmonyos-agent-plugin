@@ -1,39 +1,24 @@
-# aarch64-unknown-linux-musl cross-compilation configuration
-# Uses OpenHarmony NDK toolchain (aarch64-unknown-linux-ohos-clang + ld.lld)
-#
-# Prerequisites:
-#   1. rustup target add aarch64-unknown-linux-musl
-#   2. OHOS NDK tools on PATH
-#      NDK_BIN = D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/llvm/bin
-#      NDK_SYSROOT = D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot
-
+# WSL cross-compilation
 [env]
-CC_aarch64_unknown_linux_musl = "aarch64-unknown-linux-ohos-clang"
-AR_aarch64_unknown_linux_musl = "llvm-ar"
-CC_x86_64_unknown_linux_musl = "x86_64-unknown-linux-ohos-clang"
-AR_x86_64_unknown_linux_musl = "llvm-ar"
+CC_aarch64_unknown_linux_musl = "/home/mone/bin/aarch64-ohos-clang"
+AR_aarch64_unknown_linux_musl = "/home/mone/bin/ohos-ar"
+CC_x86_64_unknown_linux_musl = "gcc"
+AR_x86_64_unknown_linux_musl = "ar"
+CFLAGS_aarch64_unknown_linux_musl = "--sysroot=/home/mone/ohos-ndk/sysroot"
 
 [target.aarch64-unknown-linux-musl]
-# Use OHOS NDK clang as the linker driver (invokes ld.lld internally)
-linker = "aarch64-unknown-linux-ohos-clang"
-
-# Inject sysroot and linker flags for musl-based static linking
+linker = "/home/mone/bin/aarch64-ohos-clang"
 rustflags = [
-    # Point at OHOS NDK sysroot for musl headers and libs
-    "-C", "link-arg=--sysroot=D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot",
-    # Use lld as the linker
+    "-C", "link-arg=--sysroot=/home/mone/ohos-ndk/sysroot",
     "-C", "link-arg=-fuse-ld=lld",
-    # Ensure static linking (no dynamic lib dependencies)
     "-C", "link-arg=-static",
-    # Target-specific C runtime
     "-C", "target-feature=+crt-static",
 ]
 
 [target.x86_64-unknown-linux-musl]
-linker = "x86_64-unknown-linux-ohos-clang"
-
+linker = "/home/mone/bin/x86_64-ohos-clang"
 rustflags = [
-    "-C", "link-arg=--sysroot=D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot",
+    "-C", "link-arg=--sysroot=/home/mone/ohos-ndk/sysroot",
     "-C", "link-arg=-fuse-ld=lld",
     "-C", "link-arg=-static",
     "-C", "target-feature=+crt-static",

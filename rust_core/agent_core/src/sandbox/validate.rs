@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
-static STREAM_CB: Mutex<Option<extern "C" fn(chunk_data: *const c_char, event_type: u8)>> =
+pub static STREAM_CB: Mutex<Option<extern "C" fn(chunk_data: *const c_char, event_type: u8)>> =
     Mutex::new(None);
 
 /// Register a C callback for streaming chunks from Rust threads.
