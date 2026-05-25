@@ -44,7 +44,8 @@ pub unsafe extern "C" fn test_file(dir: *const c_char) -> bool {
     std::fs::remove_file(&path).is_ok()
 }
 
-/// Spawns a background thread that calls the stored stream callback N times.
+/// Spawns a background thread that sends ContentPart JSON deltas via the
+/// stream callback. Phase 2: outputs structured JSON instead of raw chars.
 /// event_type 0 = data chunk, 1 = normal completion.
 pub fn start_stream_sim(chunks: u32, interval_ms: u64) {
     thread::spawn(move || {
@@ -57,14 +58,13 @@ pub fn start_stream_sim(chunks: u32, interval_ms: u64) {
             return;
         };
 
+        let text = "Hello World";
+
         for i in 0..chunks {
-            let ch = match i % 4 {
-                0 => 'H',
-                1 => 'e',
-                2 => 'l',
-                _ => 'o',
-            };
-            let s = CString::new(ch.to_string()).unwrap();
+            let ch_idx = (i as usize) % text.len();
+            let ch = text.chars().nth(ch_idx).unwrap_or('?');
+            let json = format!(r#"{{"type":"text","text":"{}"}}"#, ch);
+            let s = CString::new(json).unwrap();
             callback(s.as_ptr(), 0);
             thread::sleep(Duration::from_millis(interval_ms));
         }

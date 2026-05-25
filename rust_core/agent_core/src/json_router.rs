@@ -1,4 +1,13 @@
 use crate::types::message::{AgentRequest, AgentResponse};
+use std::sync::RwLock;
+
+/// Global agent configuration injected by the host (configure action).
+static AGENT_CONFIG: RwLock<serde_json::Value> =
+    RwLock::new(serde_json::Value::Null);
+
+pub fn get_config() -> serde_json::Value {
+    AGENT_CONFIG.read().unwrap().clone()
+}
 
 pub fn dispatch(action: &str, args_json: &str) -> String {
     let request: Result<AgentRequest, _> = serde_json::from_str(args_json);
@@ -14,11 +23,25 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
             message: Some(r#"{"session_id":"stub"}"#.into()),
             error: None,
         },
-        "run_step" => AgentResponse {
-            status: "ok".into(),
-            message: Some("run_step stub: not implemented in Phase 0".into()),
-            error: None,
-        },
+        "configure" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(cfg) => {
+                    if let Ok(mut w) = AGENT_CONFIG.write() {
+                        *w = cfg;
+                    }
+                    AgentResponse {
+                        status: "ok".into(),
+                        message: Some("Configuration stored".into()),
+                        error: None,
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid config JSON: {}", e)),
+                },
+            }
+        }
         "test_stream" => match request {
             Ok(AgentRequest::TestStream {
                 chunks,
