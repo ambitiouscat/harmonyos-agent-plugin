@@ -1,4 +1,0 @@
-# ninja log v6
-2	556	8012426507221558	CMakeFiles/native_bridge.dir/native_bridge.cpp.o	126fbbb89a9aa126
-28	91	8012426922352310	CMakeFiles/native_bridge.dir/musl_shim.c.o	d06f497e5ff6ab65
-92	217	8012426922985341	D:/work/ai_work_space/vibecoding2harmoney/ai-agent-harmoney/hmosagent/hmos_agent_core/build/default/intermediates/cmake/default/obj/arm64-v8a/libnative_bridge.so	2f6bf48af44dc655

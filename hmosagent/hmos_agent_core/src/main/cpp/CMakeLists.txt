@@ -4,11 +4,21 @@ project(hmos_agent_core)
 set(NATIVERENDER_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_CXX_STANDARD 17)
 
+# Detect target ABI from the compiler target triple
+if(CMAKE_CXX_COMPILER_TARGET MATCHES "x86_64.*")
+    set(TARGET_ABI "x86_64")
+elseif(CMAKE_CXX_COMPILER_TARGET MATCHES "aarch64.*")
+    set(TARGET_ABI "arm64-v8a")
+else()
+    message(WARNING "Unknown compiler target: ${CMAKE_CXX_COMPILER_TARGET}, defaulting to arm64-v8a")
+    set(TARGET_ABI "arm64-v8a")
+endif()
+message(STATUS "HmosAgent: using libs/${TARGET_ABI}/libagent_core.a")
+
 # --- Import pre-built Rust static library ---
-# libagent_core.a must be copied to hmosagent/libs/arm64-v8a/ before building
 add_library(agent_core STATIC IMPORTED)
 set_target_properties(agent_core PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../../../../libs/arm64-v8a/libagent_core.a
+    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../../../../libs/${TARGET_ABI}/libagent_core.a
 )
 
 # --- Build NAPI bridge shared library ---

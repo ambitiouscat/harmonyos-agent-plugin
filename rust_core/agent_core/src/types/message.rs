@@ -1,14 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 /// Incoming request from the host (ArkTS via NAPI).
+/// The action is passed separately as a C string; the JSON body is untagged.
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "action")]
+#[serde(untagged)]
 pub enum AgentRequest {
-    #[serde(rename = "run_step")]
     RunStep { messages: Vec<Message> },
-    #[serde(rename = "load_session")]
     LoadSession { session_id: String },
-    #[serde(rename = "test_stream")]
     TestStream {
         #[serde(default = "default_chunks")]
         chunks: u32,

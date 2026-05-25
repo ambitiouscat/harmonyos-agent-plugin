@@ -1,3 +1,40 @@
-/hmosagent/.hvigor
-/.idea
-/.workspace-session-skill
+# Rust build output
+rust_core/target/
+
+# DevEco/HarmonyOS build output
+**/build/
+.hvigor/
+**/.cxx/
+
+# Dependencies
+**/oh_modules/
+**/node_modules/
+
+# IDE
+.idea/
+**/local.properties
+
+# Pre-built native libs (regenerated via build script)
+hmosagent/libs/arm64-v8a/libagent_core.a
+hmosagent/libs/x86_64/libagent_core.a
+
+# Signing keys — DO NOT COMMIT
+*.p12
+*.p7b
+*.csr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workspace session (personal data)
+.workspace-session-skill/
+
+# Test artifacts (screenshots, UI dumps)
+screenshot_*
+*_dump_*.txt
+*_dump_*.json
+
+# Reports (already at repo level)
+reports/
+
