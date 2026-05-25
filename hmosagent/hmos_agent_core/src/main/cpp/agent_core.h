@@ -36,6 +36,12 @@ void rust_agent_register_stream_cb(void (*callback)(const char* chunk_data, uint
 bool test_network(void);
 bool test_file(const char* dir);
 
+// --- Phase 1: search & RAG ---
+// Returns JSON array of search matches. Caller must free via rust_agent_free_str.
+char* rust_agent_search(const char* dir_path, const char* pattern);
+// Returns JSON status. Caller must free via rust_agent_free_str.
+char* rust_agent_scan_dir(const char* dir_path);
+
 #ifdef __cplusplus
 }
 #endif

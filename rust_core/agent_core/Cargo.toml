@@ -10,6 +10,10 @@ crate-type = ["staticlib", "lib"]
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
+ignore = "0.4"
+grep-regex = "0.1"
+grep-searcher = "0.1"
 
 [dev-dependencies]
 tempfile = "3"

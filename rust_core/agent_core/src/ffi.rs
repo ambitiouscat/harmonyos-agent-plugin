@@ -1,5 +1,6 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::path::Path;
 use std::sync::OnceLock;
 
 // --- Type aliases for function pointers in SystemCallbacks ---
@@ -65,4 +66,49 @@ pub unsafe extern "C" fn rust_agent_free_str(ptr: *mut c_char) {
     if !ptr.is_null() {
         let _ = CString::from_raw(ptr);
     }
+}
+
+/// Search a directory tree for lines matching `pattern` (in-process ripgrep).
+///
+/// # Safety
+/// `dir_path` and `pattern` must be valid null-terminated UTF-8 C strings.
+/// The returned pointer must be freed by calling `rust_agent_free_str`.
+#[no_mangle]
+pub unsafe extern "C" fn rust_agent_search(
+    dir_path: *const c_char,
+    pattern: *const c_char,
+) -> *mut c_char {
+    let dir = CStr::from_ptr(dir_path).to_str().unwrap_or(".");
+    let pat = CStr::from_ptr(pattern).to_str().unwrap_or("");
+
+    let results = crate::agent::search::InProcessSearcher::search(Path::new(dir), pat);
+
+    let json = match results {
+        Ok(matches) => serde_json::to_string(&matches).unwrap_or_else(|_| "[]".into()),
+        Err(e) => format!(r#"{{"status":"error","error":"{}"}}"#, e),
+    };
+
+    CString::new(json)
+        .unwrap_or_else(|_| CString::new("[]").unwrap())
+        .into_raw()
+}
+
+/// Scan a directory and build the BM25 RAG index in-memory.
+///
+/// # Safety
+/// `dir_path` must be a valid null-terminated UTF-8 C string.
+/// The returned pointer must be freed by calling `rust_agent_free_str`.
+#[no_mangle]
+pub unsafe extern "C" fn rust_agent_scan_dir(dir_path: *const c_char) -> *mut c_char {
+    let dir = CStr::from_ptr(dir_path).to_str().unwrap_or(".");
+    let mut index = crate::agent::rag::RagIndex::new();
+
+    let json = match index.scan_dir(Path::new(dir)) {
+        Ok(count) => format!(r#"{{"status":"ok","chunks_indexed":{}}}"#, count),
+        Err(e) => format!(r#"{{"status":"error","error":"{}"}}"#, e),
+    };
+
+    CString::new(json)
+        .unwrap_or_else(|_| CString::new(r#"{"status":"error"}"#).unwrap())
+        .into_raw()
 }
