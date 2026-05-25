@@ -1,0 +1,7 @@
+{
+  "module": {
+    "name": "hmos_agent_core",
+    "type": "har",
+    "deviceTypes": ["phone", "2in1"]
+  }
+}

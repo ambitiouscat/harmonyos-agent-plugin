@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "hmos_agent_core",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "native_bridge::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-native_bridge-Debug-3c00e1f3dc9d3f157123.json",
+					"name" : "native_bridge",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "D:/work/ai_work_space/vibecoding2harmoney/ai-agent-harmoney/hmosagent/hmos_agent_core/.cxx/default/default/debug/arm64-v8a",
+		"source" : "D:/work/ai_work_space/vibecoding2harmoney/ai-agent-harmoney/hmosagent/hmos_agent_core/src/main/cpp"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}

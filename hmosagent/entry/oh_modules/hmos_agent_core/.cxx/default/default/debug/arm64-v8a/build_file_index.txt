@@ -1,0 +1,1 @@
+D:\work\ai_work_space\vibecoding2harmoney\ai-agent-harmoney\hmosagent\hmos_agent_core\src\main\cpp\CMakeLists.txt

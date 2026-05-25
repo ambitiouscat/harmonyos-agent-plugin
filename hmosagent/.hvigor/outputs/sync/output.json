@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "ohos-module-entry": {
+    "SELECT_TARGET": "default",
+    "MODULE_BUILD_DIR": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build",
+    "TARGETS": {
+      "default": {
+        "SOURCE_ROOT": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\src\\main",
+        "RESOURCES_PATH": [
+          "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\src\\main\\resources"
+        ],
+        "BUILD_PATH": {
+          "OUTPUT_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\outputs\\default",
+          "INTERMEDIA_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates",
+          "JS_ASSETS_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\loader_out\\default",
+          "JS_LITE_ASSETS_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\loader_out_lite\\default",
+          "RES_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\res\\default",
+          "RES_PROFILE_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\res\\default\\resources\\base\\profile",
+          "ETS_SUPER_VISUAL_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\cache\\default\\default@CompileArkTS\\esmodule",
+          "JS_SUPER_VISUAL_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\cache\\default\\default@CompileJS\\jsbundle",
+          "WORKER_LOADER": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\loader\\default\\loader.json",
+          "MANIFEST_JSON": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\manifest\\default",
+          "OUTPUT_METADATA_JSON": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\hap_metadata\\default\\output_metadata.json",
+          "SOURCE_MAP_DIR": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry\\build\\default\\intermediates\\source_map\\default"
+        },
+        "BUILD_OPTION": {
+          "debuggable": true
+        }
+      }
+    },
+    "BUILD_OPTION": {
+      "default-default": {
+        "debuggable": true,
+        "copyFrom": "default",
+        "strictMode": {
+          "caseSensitiveCheck": true,
+          "useNormalizedOHMUrl": true
+        }
+      }
+    },
+    "BUILD_PROFILE_OPT": {
+      "apiType": "stageMode",
+      "buildOption": {},
+      "targets": [
+        {
+          "name": "default",
+          "runtimeOS": "HarmonyOS",
+          "config": {
+            "deviceType": [
+              "phone",
+              "2in1"
+            ]
+          }
+        }
+      ]
+    },
+    "BUILD_CACHE_DIR": ""
+  },
+  "ohos-module-hmos_agent_core": {
+    "SELECT_TARGET": "default",
+    "MODULE_BUILD_DIR": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build",
+    "TARGETS": {
+      "default": {
+        "SOURCE_ROOT": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\src\\main",
+        "RESOURCES_PATH": [
+          "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\src\\main\\resources"
+        ],
+        "BUILD_PATH": {
+          "OUTPUT_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\outputs\\default",
+          "INTERMEDIA_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates",
+          "JS_ASSETS_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\loader_out\\default",
+          "JS_LITE_ASSETS_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\loader_out_lite\\default",
+          "RES_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\res\\default",
+          "RES_PROFILE_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\res\\default\\resources\\base\\profile",
+          "ETS_SUPER_VISUAL_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\cache\\default\\default@HarCompileArkTS\\esmodule",
+          "JS_SUPER_VISUAL_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\cache\\default\\default@HarCompileJS\\jsbundle",
+          "WORKER_LOADER": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\loader\\default\\loader.json",
+          "MANIFEST_JSON": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\manifest\\default",
+          "OUTPUT_METADATA_JSON": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\hap_metadata\\default\\output_metadata.json",
+          "SOURCE_MAP_DIR": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core\\build\\default\\intermediates\\source_map\\default"
+        },
+        "BUILD_OPTION": {
+          "debuggable": true
+        }
+      }
+    },
+    "BUILD_OPTION": {
+      "default-default": {
+        "debuggable": true,
+        "copyFrom": "default",
+        "strictMode": {
+          "caseSensitiveCheck": true,
+          "useNormalizedOHMUrl": true
+        },
+        "externalNativeOptions": {
+          "path": "./src/main/cpp/CMakeLists.txt",
+          "arguments": "",
+          "cppFlags": "",
+          "abiFilters": [
+            "arm64-v8a"
+          ]
+        }
+      }
+    },
+    "BUILD_PROFILE_OPT": {
+      "apiType": "stageMode",
+      "buildOption": {
+        "externalNativeOptions": {
+          "path": "./src/main/cpp/CMakeLists.txt",
+          "arguments": "",
+          "cppFlags": "",
+          "abiFilters": [
+            "arm64-v8a"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    "BUILD_CACHE_DIR": ""
+  },
+  "ohos-project": {
+    "SELECT_PRODUCT_NAME": "default",
+    "MODULE_BUILD_DIR": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\build",
+    "BUNDLE_NAME": "com.example.hmosagent",
+    "VERSION_CODE": 1000000,
+    "VERSION_NAME": "1.0.0",
+    "BUILD_PATH": {
+      "OUTPUT_PATH": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\build\\outputs\\default"
+    },
+    "MODULES": [
+      {
+        "name": "entry",
+        "srcPath": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\entry",
+        "targets": [
+          {
+            "name": "default",
+            "applyToProducts": [
+              "default"
+            ]
+          }
+        ],
+        "belongProjectPath": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent"
+      },
+      {
+        "name": "hmos_agent_core",
+        "srcPath": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent\\hmos_agent_core",
+        "targets": [
+          {
+            "name": "default",
+            "applyToProducts": [
+              "default"
+            ]
+          }
+        ],
+        "belongProjectPath": "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent"
+      }
+    ],
+    "PROFILE_OPT": {
+      "app": {
+        "signingConfigs": [
+          {
+            "name": "default",
+            "type": "HarmonyOS",
+            "material": {
+              "certpath": "C:\\Users\\s\\.ohos\\config\\default_hmosagent_ih-xdzekAX6oxn-2E7-UFIaMxKkKmuzvKjiPwAZ_Q68=.cer",
+              "keyAlias": "debugKey",
+              "keyPassword": "0000001BD7471DBF8A71B0EFC25B44A3A2876C96E6D47FA52ED113D1E94E120D22CEEAD776610174266D8F",
+              "profile": "C:\\Users\\s\\.ohos\\config\\default_hmosagent_ih-xdzekAX6oxn-2E7-UFIaMxKkKmuzvKjiPwAZ_Q68=.p7b",
+              "signAlg": "SHA256withECDSA",
+              "storeFile": "C:\\Users\\s\\.ohos\\config\\default_hmosagent_ih-xdzekAX6oxn-2E7-UFIaMxKkKmuzvKjiPwAZ_Q68=.p12",
+              "storePassword": "0000001B4DCBADFB03ACE2CD769D1C101EEFFE4A478490B91306FE9B4C75C0BFD6C84BB23887FA51DEFC18"
+            }
+          }
+        ],
+        "products": [
+          {
+            "name": "default",
+            "signingConfig": "default",
+            "targetSdkVersion": "5.0.5(17)",
+            "compatibleSdkVersion": "5.0.5(17)",
+            "runtimeOS": "HarmonyOS",
+            "buildOption": {
+              "strictMode": {
+                "caseSensitiveCheck": true,
+                "useNormalizedOHMUrl": true
+              }
+            }
+          }
+        ],
+        "buildModeSet": [
+          {
+            "name": "debug"
+          },
+          {
+            "name": "release"
+          }
+        ]
+      },
+      "modules": [
+        {
+          "name": "entry",
+          "srcPath": "./entry",
+          "targets": [
+            {
+              "name": "default",
+              "applyToProducts": [
+                "default"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "hmos_agent_core",
+          "srcPath": "./hmos_agent_core",
+          "targets": [
+            {
+              "name": "default",
+              "applyToProducts": [
+                "default"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "CONFIG_PROPERTIES": {
+      "enableSignTask": true,
+      "skipNativeIncremental": false,
+      "hvigor.keepDependency": true
+    },
+    "OVERALL_PROJECT_PATHS": [
+      "D:\\work\\ai_work_space\\vibecoding2harmoney\\ai-agent-harmoney\\hmosagent"
+    ],
+    "BUILD_CACHE_DIR": ""
+  }
+}

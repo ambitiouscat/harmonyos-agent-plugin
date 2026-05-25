@@ -1,0 +1,28 @@
+# aarch64-unknown-linux-musl cross-compilation configuration
+# Uses OpenHarmony NDK toolchain (aarch64-unknown-linux-ohos-clang + ld.lld)
+#
+# Prerequisites:
+#   1. rustup target add aarch64-unknown-linux-musl
+#   2. OHOS NDK tools on PATH
+#      NDK_BIN = D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/llvm/bin
+#      NDK_SYSROOT = D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot
+
+[env]
+CC_aarch64_unknown_linux_musl = "aarch64-unknown-linux-ohos-clang"
+AR_aarch64_unknown_linux_musl = "llvm-ar"
+
+[target.aarch64-unknown-linux-musl]
+# Use OHOS NDK clang as the linker driver (invokes ld.lld internally)
+linker = "aarch64-unknown-linux-ohos-clang"
+
+# Inject sysroot and linker flags for musl-based static linking
+rustflags = [
+    # Point at OHOS NDK sysroot for musl headers and libs
+    "-C", "link-arg=--sysroot=D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native/sysroot",
+    # Use lld as the linker
+    "-C", "link-arg=-fuse-ld=lld",
+    # Ensure static linking (no dynamic lib dependencies)
+    "-C", "link-arg=-static",
+    # Target-specific C runtime
+    "-C", "target-feature=+crt-static",
+]

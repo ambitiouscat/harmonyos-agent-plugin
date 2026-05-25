@@ -1,0 +1,70 @@
+{
+  "HVIGOR_OHOS_PLUGIN": {
+    "MODULES": [
+      {
+        "MODULE_NAME": "923fe53966c6cd9343e11af776cd4b05be315ea4b200b02e4d5dfb0f929b73bf",
+        "API_TYPE": "stageMode",
+        "INCLUDE_IN_BUILD": true,
+        "IS_COMMAND_LINE_ENTRY_MODULE": true,
+        "MODULE_TYPE": "entry",
+        "IS_INCREMENTAL_MODULE": true
+      },
+      {
+        "MODULE_NAME": "fc068f6ea4bc18f2e4171cce038927f9681527da1c90532eae389670ee4084bc",
+        "API_TYPE": "stageMode",
+        "INCLUDE_IN_BUILD": true,
+        "IS_COMMAND_LINE_ENTRY_MODULE": false,
+        "MODULE_TYPE": "har",
+        "IS_BYTE_CODE_HAR": true,
+        "INCREMENTAL_TASKS": {
+          "BUILD_NATIVE_WITH_CMAKE": true
+        },
+        "IS_INCREMENTAL_MODULE": true
+      }
+    ],
+    "NATIVE_COMPILER": "Default",
+    "IS_FULL_BUILD": false,
+    "BUILD_MODE": "debug",
+    "USE_NORMALIZED_OHMURL": true
+  },
+  "HVIGOR": {
+    "IS_INCREMENTAL": true,
+    "IS_DAEMON": true,
+    "IS_PARALLEL": true,
+    "IS_HVIGORFILE_TYPE_CHECK": false,
+    "TASK_TIME": {
+      "923fe53966c6cd9343e11af776cd4b05be315ea4b200b02e4d5dfb0f929b73bf": {
+        "PreBuild": 9880100,
+        "CreateModuleInfo": 855000,
+        "PreCheckSyscap": 315900,
+        "ProcessIntegratedHsp": 738700,
+        "SyscapTransform": 2298700,
+        "ConfigureCmake": 232200,
+        "BuildNativeWithCmake": 759600,
+        "ProcessStartupConfig": 2716900,
+        "BuildJS": 2704200,
+        "BuildNativeWithNinja": 646800,
+        "ProcessCompiledResources": 978400,
+        "PackingCheck": 2794500,
+        "CollectDebugSymbol": 821700,
+        "assembleHap": 193100
+      },
+      "fc068f6ea4bc18f2e4171cce038927f9681527da1c90532eae389670ee4084bc": {
+        "PreBuild": 8425600,
+        "ConfigureCmake": 966200,
+        "BuildNativeWithCmake": 6411300,
+        "BuildNativeWithNinja": 65381600
+      }
+    },
+    "APIS": [
+      "getProperty"
+    ],
+    "CONFIG_EXPERIMENT": {
+      "ENABLE_MODULE_SKIP": false,
+      "ENABLE_CPP_FUNCTION_LEVEL_INCREMENTAL": false
+    },
+    "CONFIG_PROPERTIES": {},
+    "TOTAL_TIME": 325218000,
+    "BUILD_ID": "202605240002422610"
+  }
+}

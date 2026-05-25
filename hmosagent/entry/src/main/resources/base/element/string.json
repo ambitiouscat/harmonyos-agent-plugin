@@ -1,0 +1,20 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "HmosAgent"
+    },
+    {
+      "name": "module_desc",
+      "value": "HarmonyOS AI Agent powered by Rust"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "HmosAgent Main Entry"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "HmosAgent"
+    }
+  ]
+}
