@@ -249,8 +249,7 @@ static napi_value AgentCall(napi_env env, napi_callback_info info) {
 
     char* rust_res = rust_agent_call(action.c_str(), json_args.c_str());
 
-    OH_LOG_INFO(LOG_APP, "[TEST] agentCall action=%{public}s args=%{public}s → %{public}s",
-                action.c_str(), json_args.c_str(), rust_res);
+    OH_LOG_INFO(LOG_APP, "[TEST] agentCall action=%{public}s", action.c_str());
 
     napi_value js_res;
     napi_create_string_utf8(env, rust_res, NAPI_AUTO_LENGTH, &js_res);

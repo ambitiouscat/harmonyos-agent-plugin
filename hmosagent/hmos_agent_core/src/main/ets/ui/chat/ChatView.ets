@@ -35,28 +35,25 @@ export struct ChatView {
       const prefs = await preferences.getPreferences(getContext(this), 'hmos_agent_config');
       const apiKey = await prefs.get('api_key', '') as string;
       if (!apiKey || apiKey === '') {
-        // No API key configured yet — bridge won't init, show settings hint
         return;
       }
       const baseUrl = await prefs.get('base_url', '') as string;
       const model = await prefs.get('model', 'gpt-4o') as string;
       const provider = await prefs.get('provider', 'openai') as string;
 
-      // Init bridge with streaming callback
+      // Init bridge with streaming callback (host has called initWithIo by now)
       const ok = this.bridge.init((data: string, eventType: number) => {
         if (eventType === 0) {
-          // data chunk — apply delta to current assistant message
           this.applyDelta(data);
         } else if (eventType === 1) {
-          // stream complete
           this.isStreaming = false;
         } else if (eventType === 2) {
-          // error
           this.isStreaming = false;
         }
       });
 
       if (ok) {
+        this.bridgeReady = true;
         this.bridge.call('configure', JSON.stringify({
           provider: provider,
           api_key: apiKey,
@@ -64,7 +61,6 @@ export struct ChatView {
           model: model,
           max_tokens: 32000
         }));
-        this.bridgeReady = true;
         console.info('[ChatView] Bridge initialized OK');
       }
     } catch (e) {
@@ -72,9 +68,34 @@ export struct ChatView {
     }
   }
 
+  async applyConfig(): Promise<void> {
+    try {
+      const prefs = await preferences.getPreferences(getContext(this), 'hmos_agent_config');
+      const apiKey = await prefs.get('api_key', '') as string;
+      if (!apiKey || apiKey === '') {
+        return;
+      }
+      const baseUrl = await prefs.get('base_url', '') as string;
+      const model = await prefs.get('model', 'gpt-4o') as string;
+      const provider = await prefs.get('provider', 'openai') as string;
+
+      this.bridge.call('configure', JSON.stringify({
+        provider: provider,
+        api_key: apiKey,
+        base_url: baseUrl,
+        model: model,
+        max_tokens: 32000
+      }));
+      console.info('[ChatView] Config applied');
+    } catch (e) {
+      console.error('[ChatView] Config apply failed: ' + e);
+    }
+  }
+
   async handleSettingsSaved(): Promise<void> {
     this.showSettings = false;
     await this.initBridge();
+    await this.applyConfig();
   }
 
   applyDelta(deltaJson: string): void {

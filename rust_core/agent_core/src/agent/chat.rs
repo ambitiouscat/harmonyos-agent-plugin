@@ -5,6 +5,8 @@ use std::thread;
 use std::time::Duration;
 
 /// Call LLM API via ureq, parse SSE response, emit text deltas with staggered timing.
+/// Uses ureq's built-in timeout (30s connect, 120s read) to bound the request.
+/// ABORT_FLAG is checked before each delta — Stop() may be delayed up to one SSE frame.
 /// Returns `Ok(())` on clean completion, `Err(msg)` on error or abort.
 pub fn chat_completion_ureq(
     config: &serde_json::Value,
