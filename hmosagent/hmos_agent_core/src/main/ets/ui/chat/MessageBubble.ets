@@ -6,6 +6,8 @@ import { ToolCard } from '../tools';
 @ComponentV2
 export struct MessageBubble {
   @Param @Require message: ArkMessage = new ArkMessage('user');
+  @Param isStreaming: boolean = false;
+  @Param isThinking: boolean = false;
 
   build() {
     Column() {
@@ -21,7 +23,7 @@ export struct MessageBubble {
         if (part.type === 'text') {
           MarkdownView({ content: part.text })
         } else if (part.type === 'reasoning') {
-          ThinkingPanel({ content: part.text, collapsed: part.collapsed })
+          ThinkingPanel({ content: part.text, collapsed: part.collapsed, isThinking: this.isThinking, isStreaming: this.isStreaming })
         } else if (part.type === 'tool_call') {
           ToolCard({
             toolName: part.name,

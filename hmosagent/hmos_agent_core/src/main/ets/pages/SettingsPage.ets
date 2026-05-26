@@ -10,7 +10,9 @@ export struct SettingsPage {
   @Local saved: boolean = false;
   @Local showProviderPicker: boolean = false;
   @Local showModelPicker: boolean = false;
+  @Local showPhraseStylePicker: boolean = false;
   @Local providerSearch: string = '';
+  @Local thinkingPhraseStyle: string = 'claude-original';
   @Param onSettingsSaved: () => void = () => {};
 
   private prefs: preferences.Preferences | null = null;
@@ -79,6 +81,29 @@ export struct SettingsPage {
     return p ? p.name : 'Custom';
   }
 
+  private phrasePresets: [string, string][] = [
+    ['claude-original', 'Claude Code 原版英文 (187词)'],
+    ['bilingual-mix', '中英混搭 (26词)'],
+    ['classical-chinese', '中文古风 (108词)'],
+    ['simple-chinese', '简洁中文 (28词)'],
+    ['programmer-humor', '程序员梗 (33词)'],
+    ['cyberpunk', '赛博朋克 (16词)'],
+    ['cute', '可爱卖萌 (16词)'],
+    ['japanese', '日式风格 (16词)'],
+    ['wuxia', '武侠江湖 (106词)'],
+    ['chinese-history', '中国历史进程 (158词)'],
+    ['chinese-history-en', 'Chinese History (88词 英译)']
+  ];
+
+  getCurrentPhraseStyleName(): string {
+    for (let i = 0; i < this.phrasePresets.length; i++) {
+      if (this.phrasePresets[i][0] === this.thinkingPhraseStyle) {
+        return this.phrasePresets[i][1];
+      }
+    }
+    return 'Claude Code 原版英文 (187词)';
+  }
+
   async loadConfig(): Promise<void> {
     try {
       this.prefs = await preferences.getPreferences(getContext(this), 'hmos_agent_config');
@@ -86,6 +111,7 @@ export struct SettingsPage {
       this.baseUrl = await this.prefs.get('base_url', '') as string;
       this.model = await this.prefs.get('model', '') as string;
       this.providerId = await this.prefs.get('provider', 'openai') as string;
+      this.thinkingPhraseStyle = await this.prefs.get('thinking_phrase_style', 'claude-original') as string;
       if (!this.baseUrl) this.baseUrl = this.getProviderUrl(this.providerId);
       if (!this.model) {
         const models = this.getProviderModels();
@@ -104,6 +130,8 @@ export struct SettingsPage {
       await this.prefs.put('base_url', this.baseUrl);
       await this.prefs.put('model', this.model);
       await this.prefs.put('provider', this.providerId);
+      await this.prefs.put('thinking_phrase_style', this.thinkingPhraseStyle);
+      AppStorage.setOrCreate('thinking_phrase_style', this.thinkingPhraseStyle);
       await this.prefs.flush();
 
       this.saved = true;
@@ -233,6 +261,52 @@ export struct SettingsPage {
 
         TextInput({ text: $$this.model, placeholder: 'Or enter model ID manually' })
           .fontSize(13).margin({ top: 6 })
+      }.width('100%')
+
+      // Thinking phrase style picker
+      Column() {
+        Text('Thinking Phrase Style').fontSize(12).fontColor('#999')
+        Row() {
+          Text(this.getCurrentPhraseStyleName())
+            .fontSize(13)
+            .layoutWeight(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .maxLines(1)
+          Button(this.showPhraseStylePicker ? '▲' : '▼')
+            .fontSize(12).width(28).height(28)
+            .backgroundColor('#f0f0f0')
+            .hitTestBehavior(HitTestMode.None)
+        }
+        .width('100%').padding(8)
+        .border({ width: 1, color: '#ddd' }).borderRadius(4)
+        .onClick(() => { this.showPhraseStylePicker = !this.showPhraseStylePicker; })
+
+        if (this.showPhraseStylePicker) {
+          List({ space: 0 }) {
+            ForEach(this.phrasePresets, (item: [string, string]) => {
+              ListItem() {
+                Row() {
+                  Text(item[1])
+                    .fontSize(12)
+                    .fontColor(this.thinkingPhraseStyle === item[0] ? '#2196F3' : '#333')
+                    .layoutWeight(1)
+                  if (this.thinkingPhraseStyle === item[0]) {
+                    Text('✓').fontSize(13).fontColor('#4CAF50')
+                  }
+                }
+                .width('100%').padding({ left: 12, right: 12, top: 6, bottom: 6 })
+                .onClick(() => {
+                  this.thinkingPhraseStyle = item[0];
+                  this.showPhraseStylePicker = false;
+                })
+              }
+            }, (item: [string, string]) => item[0])
+          }
+          .constraintSize({ maxHeight: 240 })
+          .backgroundColor('#fff')
+          .border({ width: 1, color: '#ddd' }).borderRadius(4)
+          .margin({ top: 2 })
+        }
       }.width('100%')
 
       // Base URL

@@ -6,6 +6,9 @@ edition.workspace = true
 [lib]
 name = "agent_core"
 crate-type = ["staticlib", "cdylib", "lib"]
+# staticlib = musl .a for HarmonyOS (required)
+# cdylib    = wasm-pack .wasm output (required for wasm builds)
+# lib       = rlib for cargo test and rustc
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

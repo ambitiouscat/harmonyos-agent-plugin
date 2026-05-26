@@ -235,7 +235,11 @@ export struct ChatView {
         List() {
           ForEach(this.messages, (msg: ArkMessage, idx: number) => {
             ListItem() {
-              MessageBubble({ message: msg })
+              MessageBubble({
+                message: msg,
+                isStreaming: idx === this.messages.length - 1 ? this.isStreaming : false,
+                isThinking: idx === this.messages.length - 1 ? this.isStreaming : false
+              })
             }
           }, (msg: ArkMessage, idx: number) => msg.id || `${idx}`)
         }

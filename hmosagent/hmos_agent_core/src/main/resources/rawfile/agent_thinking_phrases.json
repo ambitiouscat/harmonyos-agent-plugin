@@ -1,0 +1,295 @@
+{
+  "meta": {
+    "description": "Agent 思考状态提示语词库 - Claude Code Spinner Verbs 完整移植 + 扩充",
+    "version": "1.0",
+    "date": "2026-05-26",
+    "usage": "在 Agent 思考/执行任务时，从 preset 数组中随机选取一个词显示在 spinner 旁"
+  },
+
+  "presets": {
+
+    "claude-original": {
+      "name": "Claude Code 原版英文（187词）",
+      "lang": "en",
+      "words": [
+        "Accomplishing","Actioning","Actualizing","Architecting",
+        "Baking","Beaming","Beboppin'","Befuddling","Billowing","Blanching","Bloviating","Boogieing","Boondoggling","Booping","Bootstrapping","Brewing","Bunning","Burrowing",
+        "Calculating","Canoodling","Caramelizing","Cascading","Catapulting","Cerebrating","Channeling","Channelling","Choreographing","Churning","Clauding","Coalescing","Cogitating","Combobulating","Composing","Computing","Concocting","Considering","Contemplating","Cooking","Crafting","Creating","Crunching","Crystallizing","Cultivating",
+        "Deciphering","Deliberating","Determining","Dilly-dallying","Discombobulating","Doing","Doodling","Drizzling",
+        "Ebbing","Effecting","Elucidating","Embellishing","Enchanting","Envisioning","Evaporating",
+        "Fermenting","Fiddle-faddling","Finagling","Flambéing","Flibbertigibbeting","Flowing","Flummoxing","Fluttering","Forging","Forming","Frolicking","Frosting",
+        "Gallivanting","Galloping","Garnishing","Generating","Gesticulating","Germinating","Gitifying","Grooving","Gusting",
+        "Harmonizing","Hashing","Hatching","Herding","Honking","Hullaballooing","Hyperspacing",
+        "Ideating","Imagining","Improvising","Incubating","Inferring","Infusing","Ionizing",
+        "Jitterbugging","Julienning",
+        "Kneading",
+        "Leavening","Levitating","Lollygagging",
+        "Manifesting","Marinating","Meandering","Metamorphosing","Misting","Moonwalking","Moseying","Mulling","Mustering","Musing",
+        "Nebulizing","Nesting","Newspapering","Noodling","Nucleating",
+        "Orbiting","Orchestrating","Osmosing",
+        "Perambulating","Percolating","Perusing","Philosophising","Photosynthesizing","Pollinating","Pondering","Pontificating","Pouncing","Precipitating","Prestidigitating","Processing","Proofing","Propagating","Puttering","Puzzling",
+        "Quantumizing",
+        "Razzle-dazzling","Razzmatazzing","Recombobulating","Reticulating","Roosting","Ruminating",
+        "Sautéing","Scampering","Schlepping","Scurrying","Seasoning","Shenaniganing","Shimmying","Simmering","Skedaddling","Sketching","Slithering","Smooshing","Sock-hopping","Spelunking","Spinning","Sprouting","Stewing","Sublimating","Swirling","Swooping","Symbioting","Synthesizing",
+        "Tempering","Thinking","Thundering","Tinkering","Tomfoolering","Topsy-turvying","Transfiguring","Transmuting","Twisting",
+        "Undulating","Unfurling","Unravelling",
+        "Vibing",
+        "Waddling","Wandering","Warping","Whatchamacalliting","Whirlpooling","Whirring","Whisking","Wibbling","Working","Wrangling",
+        "Zesting","Zigzagging"
+      ]
+    },
+
+    "bilingual-mix": {
+      "name": "中英混搭（从原版挑常用词+中文翻译）",
+      "lang": "mixed",
+      "words": [
+        "思考中 Thinking",
+        "处理中 Processing",
+        "计算中 Computing",
+        "烹饪中 Cooking",
+        "烘焙中 Baking",
+        "酿造中 Brewing",
+        "锻造中 Forging",
+        "孵化中 Hatching",
+        "生成中 Generating",
+        "合成中 Synthesizing",
+        "破译中 Deciphering",
+        "漫游中 Wandering",
+        "冥想中 Pondering",
+        "沉思中 Contemplating",
+        "融合中 Coalescing",
+        "编织中 Weaving",
+        "修修补补 Tinkering",
+        "溜达中 Moseying",
+        "解谜中 Puzzling",
+        "洞穴探险 Spelunking",
+        "高速运转中 Whirring",
+        "人群中 Vibing",
+        "解构中 Unravelling",
+        "耍宝中 Tomfoolering",
+        "反刍中 Ruminating",
+        "奇妙操作中 Prestidigitating"
+      ]
+    },
+
+    "classical-chinese": {
+      "name": "中文古风（108词）",
+      "lang": "zh",
+      "words": [
+        "静思中","沉吟中","凝思中","遐思中","冥想中","幽思中","玄思中","深思中",
+        "推敲中","琢磨中","揣摩中","参悟中","领悟中","体悟中","感悟中","禅悟中",
+        "展卷中","翻阅中","览阅中","披阅中","诵读中","吟咏中","吟哦中","吟诵中",
+        "挥毫中","泼墨中","落笔中","蘸墨中","题词中","题字中","濡墨中","研墨中",
+        "伫立中","凝望中","远眺中","眺望中","守候中","等候中","期盼中","翘首中",
+        "徘徊中","踟蹰中","踯躅中","彷徨中","漫步中","徜徉中","游历中","遨游中",
+        "构思中","运筹中","筹划中","谋划中","酝酿中","孕育中","孵化中","萌发中",
+        "采撷中","撷取中","收集中","搜罗中","筛选中","拣选中","拾遗中","探寻中",
+        "编织中","交织中","穿针中","引线中","经纬中","纺织中","织造中","编结中",
+        "听雨中","观云中","赏月中","望风中","听风吟","观潮起","看云卷","赏花落",
+        "采菊中","种豆中","耕耘中","播撒中","浇灌中","培育中","养护中","润泽中",
+        "煮茶中","烹茶中","煎茶中","品茗中","斟酌中","酌情中","斟茶中","奉茶中",
+        "抚琴中","弄弦中","吹箫中","弹奏中"
+      ]
+    },
+
+    "simple-chinese": {
+      "name": "简洁中文（28词）",
+      "lang": "zh",
+      "words": [
+        "思考中","分析中","推理中","计算中","处理中","读取中","写入中","搜索中",
+        "查询中","生成中","创建中","编辑中","删除中","更新中","连接中","传输中",
+        "加载中","解析中","编译中","运行中","测试中","验证中","优化中","重构中",
+        "调试中","部署中","发布中","监控中"
+      ]
+    },
+
+    "programmer-humor": {
+      "name": "程序员梗（33词）",
+      "lang": "zh",
+      "words": [
+        "debug中","stack overflow中","rubber duck中","grep中","commit中","deploy中",
+        "RTFM中","它在我机器上能跑","这不是bug是feature","压住Enter中",
+        "coffee break中","写bug中","改bug中","又改bug中","永久修复中","临时修复中",
+        "猴子补丁中","面向运气编程","祈祷中","烧香中","祭拜键盘","玄学调试",
+        "祈祷编译通过","等待CI中","等待PR中","等待review中","等待merge中",
+        "等待deploy","等待上线","等待监控","等待告警","等待下班","等待周五"
+      ]
+    },
+
+    "cyberpunk": {
+      "name": "赛博朋克（16词）",
+      "lang": "zh",
+      "words": [
+        "神经元同步中","数据注入中","矩阵计算中","量子解码中","神经链接中",
+        "协议握手","缓存刷新","进程注入","内存映射","端口扫描","载荷解密",
+        "隧道建立","协议升级","节点同步","数据重构","逻辑门翻转"
+      ]
+    },
+
+    "cute": {
+      "name": "可爱卖萌（16词）",
+      "lang": "zh",
+      "words": [
+        "努力思考中~","认真分析中~","绞尽脑汁中~","使劲想呀~",
+        "大脑运转中~","冥思苦想中~","灵光一闪中~","啊哈时刻~",
+        "嗯嗯思考中~","好的马上~","来啦来啦~","正在努力~",
+        "加油加油~","冲冲冲~","好嘞好嘞~","收到收到~"
+      ]
+    },
+
+    "japanese": {
+      "name": "日式风格（16词）",
+      "lang": "ja",
+      "words": [
+        "考え中","検討中","分析中","処理中","作成中","読込中","書込中",
+        "接続中","生成中","計算中","探索中","整理中","構築中","最適化中",
+        "確認中","準備中"
+      ]
+    },
+
+    "wuxia": {
+      "name": "武侠江湖（106词）",
+      "lang": "zh",
+      "words": [
+        "悟道中","修炼中","破境中","飞升中","入定中","凝气中","筑基中","结丹中",
+        "元婴中","化神中","渡劫中","大成中","圆满中","运功中","调息中","吐纳中",
+        "运转周天","打通经脉","冲穴中","运劲中","蓄力中","聚气中","凝神中",
+        "练剑中","习武中","演武中","切磋中","对决中","过招中","破招中","出招中",
+        "收招中","拆招中","剑气纵横","剑意凌厉","剑心通明","拔剑中","出鞘中",
+        "御剑中","祭剑中","顿悟中","明悟中","参透中","贯通中","融会贯通","触类旁通",
+        "行走江湖","仗剑天涯","游历四方","行侠仗义","闯荡江湖","踏遍青山","浪迹天涯",
+        "闭关中","面壁中","参禅中","苦修中","历练中","淬炼中","踏雪无痕","凌波微步",
+        "飞檐走壁","身法飘逸","纵身一跃","奇门遁甲","五行八卦","布阵中","破阵中",
+        "点穴中","解穴中","解毒中","疗伤中","炼丹中","淬毒中","机关术中","密室探索",
+        "寻宝中","夺宝中","比武中","论剑中","擂台中","江湖救急","斩妖除魔","替天行道",
+        "仗义执言","恩怨分明","侠骨柔情","快意恩仇","剑胆琴心","笑傲江湖","问剑中",
+        "求道中","证道中","得道中","化境中","无我中","忘我中","天人合一"
+      ]
+    },
+
+    "chinese-history": {
+      "name": "中国历史进程（158词）",
+      "lang": "zh",
+      "description": "沿着中国五千年历史脉络设计的提示语，涵盖朝代、战役、人物典故、文化成就",
+      "words": {
+        "dynasties": {
+          "name": "朝代更替（25词）",
+          "words": [
+            "华夏肇始中","夏商周中","春秋争霸中","战国纵横中","秦统六国中",
+            "两汉兴隆中","三国鼎立中","两晋风流中","南北朝对峙中","隋唐盛世中",
+            "五代十国中","宋辽金夏中","元朝铁骑中","明朝风华中","八旗乱华中",
+            "上古传说中","逐鹿中原中","封邦建国中","礼乐征伐中","书同文中",
+            "车同轨中","郡县天下中","丝路驼铃中","大航海前夜中","帝制余晖中"
+          ]
+        },
+        "battles": {
+          "name": "经典战役（34词）",
+          "words": [
+            "涿鹿之战中","牧野鹰扬中","长勺鼓声中","城濮退避中","桂陵围魏中",
+            "马陵减灶中","即墨火牛中","长平对峙中","巨鹿破釜中","垓下十面中",
+            "白登围城中","漠北远征中","昆阳大捷中","官渡相持中","赤壁东风中",
+            "夷陵连营中","淝水草木中","虎牢鏖战中","睢阳死守中","鄱阳水战中",
+            "萨尔浒中","雅克萨中","鸦片烽烟中","甲午海战中",
+            "鸣条之战中","柏举交锋中","济西火牛中","井陉背水中",
+            "睢水之战中","阴山征战中","怛罗斯中","采石矶中",
+            "襄阳坚守中","一片石中"
+          ]
+        },
+        "figures": {
+          "name": "人物典故（35词）",
+          "words": [
+            "大禹治水中","武王伐纣中","姜太公钓鱼中","卧薪尝胆中","完璧归赵中",
+            "负荆请罪中","纸上谈兵中","荆轲刺秦中","四面楚歌中","张骞凿空中",
+            "苏武牧羊中","昭君出塞中","三顾茅庐中","草船借箭中","七擒孟获中",
+            "闻鸡起舞中","中流击楫中","玄奘西行中","鉴真东渡中","岳母刺字中",
+            "精忠报国中","郑和下西洋中","戚继光抗倭中","朱成功收台",
+            "成也萧何中","胯下之辱中","毛遂自荐中","围魏救赵中",
+            "焚书坑儒中","投笔从戎中","鞠躬尽瘁中","司马光砸缸中",
+            "王安石变法中","海瑞罢官中","虎门销烟中"
+          ]
+        },
+        "events": {
+          "name": "重大事件（36词）",
+          "words": [
+            "开天辟地中","女娲补天中","后羿射日中","禅让天下中","家天下始中",
+            "封建宗法中","礼崩乐坏中","百家争鸣中","合纵连横中","焚书坑儒中",
+            "丝绸之路中","张骞出使中","独尊儒术中","造纸革新中","黄巾起义中",
+            "永嘉南渡中","科举初创中","大运河贯通中","贞观之治中","开元盛世中",
+            "安史乱起中","黄巢起义中","靖康耻中","崖山蹈海中",
+            "洪武开国中","永乐大典中","张居正改革中","康乾乱世地狱中",
+            "鸦片战争中","太平天国中","洋务运动中","戊戌变法中",
+            "辛亥革命中","五四运动中","开国大典中","改革开放中"
+          ]
+        },
+        "culture": {
+          "name": "文化科技（28词）",
+          "words": [
+            "仓颉造字中","青铜铸鼎中","编钟雅乐中","周易八卦中","诗经风雅中",
+            "孔子周游中","老子出关中","孙子兵法中","楚辞离骚中","秦陵兵马中",
+            "史记春秋中","蔡伦造纸中","地动仪中","九章算术中","兰亭集序中",
+            "唐诗辉煌中","宋词婉约中","清明上河中","活字印刷中","指南针中",
+            "火药配比中","本草纲目中","天工开物中","永乐大典中","四库全书开编中",
+            "敦煌壁绘中","云冈石窟中","紫禁城中"
+          ]
+        }
+      },
+      "flat": [
+        "华夏肇始中","夏商周中","春秋争霸中","战国纵横中","秦统六国中",
+        "两汉兴隆中","三国鼎立中","两晋风流中","南北朝对峙中","隋唐盛世中",
+        "五代十国中","宋辽金夏中","元朝铁骑中","明朝风华中","八旗乱华中",
+        "上古传说中","逐鹿中原中","封邦建国中","礼乐征伐中",
+        "涿鹿之战中","牧野鹰扬中","城濮退避中","长平对峙中",
+        "巨鹿破釜中","垓下十面中","赤壁东风中","淝水草木中",
+        "鄱阳水战中","鸦片烽烟中","甲午海战中",
+        "大禹治水中","武王伐纣中","卧薪尝胆中","完璧归赵中",
+        "负荆请罪中","三顾茅庐中","草船借箭中","七擒孟获中",
+        "闻鸡起舞中","中流击楫中","精忠报国中","郑和下西洋中",
+        "开天辟地中","百家争鸣中","丝绸之路中","贞观之治中",
+        "开元盛世中","安史乱起中","康乾乱世地狱中","辛亥革命中",
+        "仓颉造字中","诗经风雅中","孔子周游中","孙子兵法中",
+        "楚辞离骚中","史记春秋中","蔡伦造纸中","唐诗辉煌中",
+        "宋词婉约中","清明上河中","活字印刷中","指南针中",
+        "本草纲目中","敦煌壁绘中","紫禁城中",
+        "改革开放中","五四运动中","开国大典中"
+      ]
+    },
+
+    "chinese-history-en": {
+      "name": "Chinese History（英译版，双语对照）",
+      "lang": "en",
+      "description": "English-translated version of Chinese history terms for bilingual agents",
+      "words": [
+        "Founding a Civilization","Rising of Xia-Shang-Zhou","Spring and Autumn","Warring States","Conquering the Six Kingdoms",
+        "Golden Age of Han","Three Kingdoms","Jin Dynasty Elegance","Northern and Southern Dynasties","Tang-Song Prosperity",
+        "Five Dynasties and Ten Kingdoms","Mongol Conquest","Marco Polo's Journey","Ming Dynasty Splendor","Banner Army Turmoil",
+        "Yellow Emperor's Legacy","Oracle Bones Reading","Bronze Age Casting","Silk Road Trading",
+        "Battle of Zhuolu","Muye Campaign","Battle of Changping","Battle of Julu",
+        "Ambush at Gaixia","Red Cliffs Rising","Fei River Standoff","Battle of Poyang",
+        "Opium War Echoes","Battle of Yalu Sea","Hundred Days Reform",
+        "Yu the Great Taming Floods","King Wu's Rebellion","Sleeping on Brushwood","Jade Returned to Zhao",
+        "Visiting the Thatched Cottage","Borrowing Arrows with Straw Boats","Seven Captures of Meng Huo",
+        "Hearing the Rooster Dance","Swearing in the Middle of the River","Loyal Yue Fei's Tattoo","Zheng He's Great Voyages",
+        "Pangu Creating the World","Hundred Schools of Thought","Cai Lun Inventing Paper","Zhenguan Golden Age",
+        "Kaiyuan Prosperity","An Lushan Rebellion","Qing Decline and Chaos","Xinhai Revolution",
+        "Cangjie Inventing Characters","Book of Songs","Confucius Traveling States","Art of War Strategy",
+        "Songs of Chu","Records of the Grand Historian","Four Great Inventions","Tang Poetry Peak",
+        "Song Ci Lyricism","Along the River at Qingming Festival","Movable Type Printing","Compass Navigating",
+        "Compendium of Materia Medica","Dunhuang Murals","Forbidden City Rising",
+        "Reform and Opening","May Fourth Movement","Founding of a Nation"
+      ]
+    }
+  },
+
+  "completions": {
+    "name": "已完成提示语（Claude Code 原版 + 中文版）",
+    "words": {
+      "claude-original": ["Baked","Brewed","Churned","Cogitated","Cooked","Crunched","Sautéed","Worked"],
+      "chinese-cooking": ["出锅了","烤好了","煮好了","炒好了","炖好了","蒸好了","炸好了","焖好了"],
+      "chinese-history": ["江山已定","天下太平","大功告成","青史留名","载入史册","功成名就","凯旋而归","光耀千秋"],
+      "chinese-programmer": ["编译通过了","没崩","跑起来了","一发入魂","玄学生效","老板说OK了","可以下班了"],
+      "cyberpunk-completion": ["安全传输已建立","协议握手完成","数据已同步","神经元握手完毕"],
+      "cute-completion": ["好啦好啦~","大功告成啦~","搞定啦~","嗯嗯做好啦~"],
+      "simple-chinese-completion": ["已完成","更新完毕","运行成功","任务结束"]
+    }
+  }
+}
