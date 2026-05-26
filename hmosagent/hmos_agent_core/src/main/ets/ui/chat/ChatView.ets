@@ -28,6 +28,9 @@ export struct ChatView {
   }
 
   async initBridge(): Promise<void> {
+    if (this.bridgeReady) {
+      return;
+    }
     try {
       const prefs = await preferences.getPreferences(getContext(this), 'hmos_agent_config');
       const apiKey = await prefs.get('api_key', '') as string;
@@ -159,7 +162,23 @@ export struct ChatView {
     }
 
     // Rust ureq path: bridge.call → json_router → thread → ureq → SSE → stream cb → applyDelta
-    this.bridge.call('chat', JSON.stringify({ messages: msgs }));
+    try {
+      const res = this.bridge.call('chat', JSON.stringify({ messages: msgs }));
+      const parsed = JSON.parse(res) as Record<string, string>;
+      if (parsed['status'] === 'error') {
+        this.isStreaming = false;
+        const reply = new ArkMessage('assistant');
+        reply.parts = [new ArkContentPart('text')];
+        reply.parts[0].text = `Error: ${parsed['error'] || 'Unknown error'}`;
+        this.messages.push(reply);
+      }
+    } catch (e) {
+      this.isStreaming = false;
+      const reply = new ArkMessage('assistant');
+      reply.parts = [new ArkContentPart('text')];
+      reply.parts[0].text = `Chat failed: ${e}`;
+      this.messages.push(reply);
+    }
   }
 
   handleStop(): void {

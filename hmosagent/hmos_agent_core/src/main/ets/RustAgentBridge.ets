@@ -22,6 +22,10 @@ export class RustAgentBridge {
    * eventType: 0 = data chunk, 1 = stream completed, 2 = error
    */
   public init(onChunk: StreamCallback): boolean {
+    if (this.initialized) {
+      this.streamCallback = onChunk;
+      return true;
+    }
     this.streamCallback = onChunk;
     try {
       this.initialized = nativeBridge.initAgent((data: string, eventType: number) => {
@@ -43,6 +47,11 @@ export class RustAgentBridge {
    *                 Receives (url, body), MUST return response string.
    */
   public initWithIo(onChunk: StreamCallback, onIo: IoCallback): boolean {
+    if (this.initialized) {
+      this.streamCallback = onChunk;
+      this.ioCallback = onIo;
+      return true;
+    }
     this.streamCallback = onChunk;
     this.ioCallback = onIo;
     try {
