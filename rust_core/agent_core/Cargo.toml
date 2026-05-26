@@ -5,7 +5,7 @@ edition.workspace = true
 
 [lib]
 name = "agent_core"
-crate-type = ["staticlib", "lib"]
+crate-type = ["staticlib", "cdylib", "lib"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -16,9 +16,18 @@ grep-regex = "0.1"
 grep-searcher = "0.1"
 ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
 
+# WASM target dependencies
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+
+# Node target dependencies
+napi = { version = "2", optional = true }
+napi-derive = { version = "2", optional = true }
+
 [dev-dependencies]
 tempfile = "3"
 
-
-
-ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
+[features]
+default = []
+wasm = ["wasm-bindgen", "js-sys"]
+node = ["napi", "napi-derive"]

@@ -69,10 +69,12 @@ pub unsafe extern "C" fn rust_agent_free_str(ptr: *mut c_char) {
 }
 
 /// Search a directory tree for lines matching `pattern` (in-process ripgrep).
+/// Not available on wasm32 (no filesystem access).
 ///
 /// # Safety
 /// `dir_path` and `pattern` must be valid null-terminated UTF-8 C strings.
 /// The returned pointer must be freed by calling `rust_agent_free_str`.
+#[cfg(not(target_arch = "wasm32"))]
 #[no_mangle]
 pub unsafe extern "C" fn rust_agent_search(
     dir_path: *const c_char,
@@ -94,10 +96,12 @@ pub unsafe extern "C" fn rust_agent_search(
 }
 
 /// Scan a directory and build the BM25 RAG index in-memory.
+/// Not available on wasm32 (no filesystem access).
 ///
 /// # Safety
 /// `dir_path` must be a valid null-terminated UTF-8 C string.
 /// The returned pointer must be freed by calling `rust_agent_free_str`.
+#[cfg(not(target_arch = "wasm32"))]
 #[no_mangle]
 pub unsafe extern "C" fn rust_agent_scan_dir(dir_path: *const c_char) -> *mut c_char {
     let dir = CStr::from_ptr(dir_path).to_str().unwrap_or(".");

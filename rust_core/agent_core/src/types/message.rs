@@ -14,6 +14,10 @@ pub struct ChatMessage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgentRequest {
+    VfsWrite {
+        path: String,
+        content: String,
+    },
     ChatStream { messages: Vec<ChatMessage> },
     RunStep { messages: Vec<Message> },
     LoadSession { session_id: String },

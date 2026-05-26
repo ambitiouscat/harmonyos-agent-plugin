@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>HmosAgent WASM Test</title></head>
+<body>
+<h1>HmosAgent WASM Ping Test</h1>
+<pre id="output"></pre>
+<script type="module">
+  import init, { wasm_agent_init, wasm_agent_call } from '../pkg/wasm/agent_core.js';
+
+  async function run() {
+    await init();
+    const output = document.getElementById('output');
+
+    // Init with no-op JS callbacks
+    const onChunk = (data, eventType) => {
+      output.textContent += `[${eventType}] ${data}\n`;
+    };
+    const onIo = (url, body) => {
+      output.textContent += `IO: ${url}\n`;
+      return '{"status":"ok"}';
+    };
+
+    const ok = wasm_agent_init(onChunk, onIo);
+    output.textContent += `init: ${ok}\n`;
+
+    const res = wasm_agent_call("ping", "{}");
+    output.textContent += `ping: ${res}\n`;
+  }
+
+  run().catch(e => { document.getElementById('output').textContent = 'Error: ' + e; });
+</script>
+</body>
+</html>

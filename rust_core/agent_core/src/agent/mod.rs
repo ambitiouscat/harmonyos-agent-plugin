@@ -1,7 +1,14 @@
 pub mod abort;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod chat;
 pub mod context;
 pub mod loop_engine;
 pub mod pipeline;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod rag;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod search;
+#[cfg(feature = "wasm")]
+pub mod wasm;
+#[cfg(feature = "node")]
+pub mod node;
