@@ -6,6 +6,7 @@ import { SettingsPage } from '../../pages/SettingsPage';
 import { preferences } from '@kit.ArkData';
 import { http } from '@kit.NetworkKit';
 import { SseStreamController } from '../../stream/SseStreamController';
+import { getPhraseLoader } from '../common';
 
 interface ChatPayload {
   role: string;
@@ -25,6 +26,7 @@ export struct ChatView {
 
   aboutToAppear(): void {
     this.initBridge();
+    getPhraseLoader().load(getContext(this));
   }
 
   async initBridge(): Promise<void> {

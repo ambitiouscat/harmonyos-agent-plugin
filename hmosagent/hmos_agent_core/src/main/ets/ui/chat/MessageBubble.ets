@@ -19,6 +19,10 @@ export struct MessageBubble {
       }
       .width('100%')
 
+      if (this.message.role === 'assistant' && this.isThinking && this.message.parts.length === 0) {
+        ThinkingPanel({ content: '', collapsed: true, isThinking: true, isStreaming: this.isStreaming })
+      }
+
       ForEach(this.message.parts, (part: ArkContentPart) => {
         if (part.type === 'text') {
           MarkdownView({ content: part.text })

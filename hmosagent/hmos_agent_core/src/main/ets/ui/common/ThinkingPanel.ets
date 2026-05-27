@@ -11,15 +11,19 @@ export struct ThinkingPanel {
   @Local showCompletion: boolean = false;
   @Local completionText: string = '';
   @Local fadeOut: boolean = false;
+  @Local elapsedSeconds: number = 0;
   private phraseQueue: string[] = [];
   private queueIndex: number = 0;
   private timerId: number = -1;
+  private elapsedTimerId: number = -1;
   private phraseStyle: string = 'claude-original';
   private loader = getPhraseLoader();
 
   aboutToAppear(): void {
     this.isCollapsed = this.collapsed;
-    this.startSpinner();
+    if (this.isThinking) {
+      this.startSpinner();
+    }
   }
 
   aboutToDisappear(): void {
@@ -34,7 +38,9 @@ export struct ThinkingPanel {
       this.startSpinner();
     } else {
       this.stopTimer();
-      this.showCompletionWord();
+      if (!this.content) {
+        this.showCompletionWord();
+      }
     }
   }
 
@@ -49,9 +55,13 @@ export struct ThinkingPanel {
   startSpinner(): void {
     this.stopTimer();
     this.loadPhraseStyle();
+    this.elapsedSeconds = 0;
+    this.elapsedTimerId = setInterval(() => {
+      this.elapsedSeconds++;
+    }, 1000);
     this.buildQueue();
     if (this.phraseQueue.length === 0) {
-      this.activePhrase = 'Thinking...';
+      this.activePhrase = 'Thinking';
       return;
     }
     this.activePhrase = this.phraseQueue[0];
@@ -71,6 +81,16 @@ export struct ThinkingPanel {
       clearInterval(this.timerId);
       this.timerId = -1;
     }
+    if (this.elapsedTimerId !== -1) {
+      clearInterval(this.elapsedTimerId);
+      this.elapsedTimerId = -1;
+    }
+  }
+
+  formatElapsed(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
   }
 
   buildQueue(): void {
@@ -107,7 +127,7 @@ export struct ThinkingPanel {
     }, 1000);
   }
 
-  async loadPhraseStyle(): Promise<void> {
+  loadPhraseStyle(): void {
     try {
       const val = AppStorage.get<string>('thinking_phrase_style');
       if (val) {
@@ -135,8 +155,8 @@ export struct ThinkingPanel {
                 .fontWeight(FontWeight.Medium)
                 .opacity(this.fadeOut ? 0 : 1)
                 .animation({ duration: 500, curve: Curve.EaseOut })
-            } else if (this.isThinking && !this.content) {
-              Text(this.activePhrase)
+            } else if (this.isThinking) {
+              Text(this.activePhrase + '… (' + this.formatElapsed(this.elapsedSeconds) + ')')
                 .fontSize(13)
                 .fontColor('#888')
                 .fontStyle(FontStyle.Italic)
