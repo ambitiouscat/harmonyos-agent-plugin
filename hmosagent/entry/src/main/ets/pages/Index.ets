@@ -1,8 +1,12 @@
-import { ChatView } from 'hmos_agent_core';
+import { ChatView, getPhraseLoader } from 'hmos_agent_core';
 
 @Entry
 @Component
 struct Index {
+  aboutToAppear(): void {
+    getPhraseLoader().load(getContext(this));
+  }
+
   build() {
     Column() {
       ChatView()

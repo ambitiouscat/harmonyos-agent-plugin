@@ -1,5 +1,6 @@
 import { preferences } from '@kit.ArkData';
 import { getProviderLoader, OpenCodeModel, OpenCodeProvider } from '../provider/ProviderLoader';
+import { getPhraseLoader, CategoryInfo } from '../ui/common/PhraseLoader';
 
 @ComponentV2
 export struct SettingsPage {
@@ -13,6 +14,7 @@ export struct SettingsPage {
   @Local showPhraseStylePicker: boolean = false;
   @Local providerSearch: string = '';
   @Local thinkingPhraseStyle: string = 'claude-original';
+  @Local phraseCategories: CategoryInfo[] = [];
   @Param onSettingsSaved: () => void = () => {};
 
   private prefs: preferences.Preferences | null = null;
@@ -22,6 +24,22 @@ export struct SettingsPage {
     this.loader.setUpdateCallback(() => { this.onProvidersUpdated(); });
     this.loader.load(getContext(this));
     this.loadConfig();
+    this.loadPhraseCategories();
+  }
+
+  async loadPhraseCategories(): Promise<void> {
+    await getPhraseLoader().load(getContext(this));
+    const cats = getPhraseLoader().getCategories();
+    if (cats.length > 0) {
+      this.phraseCategories = cats;
+    } else {
+      this.phraseCategories = [{
+        id: 'claude-original',
+        name: 'Claude Code Original (187)',
+        phrases: [],
+        completions: []
+      }];
+    }
   }
 
   @Local providerVersion: number = 0;
@@ -81,27 +99,13 @@ export struct SettingsPage {
     return p ? p.name : 'Custom';
   }
 
-  private phrasePresets: [string, string][] = [
-    ['claude-original', 'Claude Code 原版英文 (187词)'],
-    ['bilingual-mix', '中英混搭 (26词)'],
-    ['classical-chinese', '中文古风 (108词)'],
-    ['simple-chinese', '简洁中文 (28词)'],
-    ['programmer-humor', '程序员梗 (33词)'],
-    ['cyberpunk', '赛博朋克 (16词)'],
-    ['cute', '可爱卖萌 (16词)'],
-    ['japanese', '日式风格 (16词)'],
-    ['wuxia', '武侠江湖 (106词)'],
-    ['chinese-history', '中国历史进程 (158词)'],
-    ['chinese-history-en', 'Chinese History (88词 英译)']
-  ];
-
   getCurrentPhraseStyleName(): string {
-    for (let i = 0; i < this.phrasePresets.length; i++) {
-      if (this.phrasePresets[i][0] === this.thinkingPhraseStyle) {
-        return this.phrasePresets[i][1];
+    for (const cat of this.phraseCategories) {
+      if (cat.id === this.thinkingPhraseStyle) {
+        return cat.name;
       }
     }
-    return 'Claude Code 原版英文 (187词)';
+    return 'Select style...';
   }
 
   async loadConfig(): Promise<void> {
@@ -283,24 +287,24 @@ export struct SettingsPage {
 
         if (this.showPhraseStylePicker) {
           List({ space: 0 }) {
-            ForEach(this.phrasePresets, (item: [string, string]) => {
+            ForEach(this.phraseCategories, (cat: CategoryInfo) => {
               ListItem() {
                 Row() {
-                  Text(item[1])
+                  Text(cat.name)
                     .fontSize(12)
-                    .fontColor(this.thinkingPhraseStyle === item[0] ? '#2196F3' : '#333')
+                    .fontColor(this.thinkingPhraseStyle === cat.id ? '#2196F3' : '#333')
                     .layoutWeight(1)
-                  if (this.thinkingPhraseStyle === item[0]) {
+                  if (this.thinkingPhraseStyle === cat.id) {
                     Text('✓').fontSize(13).fontColor('#4CAF50')
                   }
                 }
                 .width('100%').padding({ left: 12, right: 12, top: 6, bottom: 6 })
                 .onClick(() => {
-                  this.thinkingPhraseStyle = item[0];
+                  this.thinkingPhraseStyle = cat.id;
                   this.showPhraseStylePicker = false;
                 })
               }
-            }, (item: [string, string]) => item[0])
+            }, (cat: CategoryInfo) => cat.id)
           }
           .constraintSize({ maxHeight: 240 })
           .backgroundColor('#fff')
