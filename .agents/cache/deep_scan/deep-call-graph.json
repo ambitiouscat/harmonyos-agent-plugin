@@ -1,0 +1,103 @@
+{
+  "generated_at": "2026-05-27",
+  "node_count": 33,
+  "edge_count": 52,
+  "cycles_detected": 0,
+  "architecture": "DAG (strictly layered, no circular dependencies)",
+  "layers": {
+    "arkts_ui": {
+      "nodes": ["ChatView", "MessageBubble", "MarkdownView", "MarkdownParser", "InputBar", "CommandPalette", "ConversationList", "ThinkingPanel", "ToolCard", "SettingsPage", "SseStreamController", "RustAgentBridge", "SystemIoImpl", "ProviderLoader", "PhraseLoader", "ArkMessage", "ArkContentPart"],
+      "count": 17
+    },
+    "cpp_napi": {
+      "nodes": ["native_bridge.cpp"],
+      "count": 1
+    },
+    "rust_core": {
+      "nodes": ["ffi.rs", "json_router.rs", "agent/chat.rs", "agent/loop_engine.rs", "agent/session.rs", "agent/skills.rs", "agent/context.rs", "agent/pipeline.rs", "agent/rag.rs", "agent/search.rs", "agent/abort.rs", "tools/file.rs", "tools/mcp.rs", "tools/subagent.rs", "tools/web.rs", "sandbox/validate.rs", "types/message.rs"],
+      "count": 17
+    }
+  },
+  "nodes": [
+    {"id": "types/message.rs", "layer": "rust_core", "fan_in": 3, "fan_out": 0, "integrity": "integrated"},
+    {"id": "agent/abort.rs", "layer": "rust_core", "fan_in": 4, "fan_out": 0, "integrity": "integrated"},
+    {"id": "agent/chat.rs", "layer": "rust_core", "fan_in": 1, "fan_out": 2, "integrity": "integrated"},
+    {"id": "agent/context.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 1, "integrity": "stub_unused"},
+    {"id": "agent/loop_engine.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 1, "integrity": "stub_unused"},
+    {"id": "agent/pipeline.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 0, "integrity": "stub_unused"},
+    {"id": "agent/rag.rs", "layer": "rust_core", "fan_in": 1, "fan_out": 0, "integrity": "integrated"},
+    {"id": "agent/search.rs", "layer": "rust_core", "fan_in": 1, "fan_out": 0, "integrity": "integrated"},
+    {"id": "agent/session.rs", "layer": "rust_core", "fan_in": 2, "fan_out": 0, "integrity": "integrated"},
+    {"id": "agent/skills.rs", "layer": "rust_core", "fan_in": 1, "fan_out": 0, "integrity": "integrated"},
+    {"id": "tools/file.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 0, "integrity": "stub_unused"},
+    {"id": "tools/mcp.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 0, "integrity": "stub_unused"},
+    {"id": "tools/subagent.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 1, "integrity": "stub_unused"},
+    {"id": "tools/web.rs", "layer": "rust_core", "fan_in": 0, "fan_out": 1, "integrity": "stub_unused"},
+    {"id": "sandbox/validate.rs", "layer": "rust_core", "fan_in": 1, "fan_out": 0, "integrity": "integrated"},
+    {"id": "json_router.rs", "layer": "rust_core", "fan_in": 1, "fan_out": 6, "integrity": "integrated"},
+    {"id": "ffi.rs", "layer": "rust_core", "fan_in": 2, "fan_out": 4, "integrity": "integrated"},
+    {"id": "native_bridge.cpp", "layer": "cpp_napi", "fan_in": 1, "fan_out": 1, "integrity": "integrated"},
+    {"id": "RustAgentBridge", "layer": "arkts_ui", "fan_in": 2, "fan_out": 1, "integrity": "integrated"},
+    {"id": "ChatView", "layer": "arkts_ui", "fan_in": 1, "fan_out": 7, "integrity": "integrated"},
+    {"id": "MessageBubble", "layer": "arkts_ui", "fan_in": 1, "fan_out": 3, "integrity": "integrated"}
+  ],
+  "edges": [
+    {"from": "ChatView", "to": "RustAgentBridge", "type": "NAPI"},
+    {"from": "ChatView", "to": "MessageBubble", "type": "arkts_import"},
+    {"from": "ChatView", "to": "InputBar", "type": "arkts_import"},
+    {"from": "ChatView", "to": "ConversationList", "type": "arkts_import"},
+    {"from": "ChatView", "to": "SseStreamController", "type": "arkts_import"},
+    {"from": "MessageBubble", "to": "MarkdownView", "type": "arkts_import"},
+    {"from": "MessageBubble", "to": "ThinkingPanel", "type": "arkts_import"},
+    {"from": "MessageBubble", "to": "ToolCard", "type": "arkts_import"},
+    {"from": "MarkdownView", "to": "MarkdownParser", "type": "arkts_import"},
+    {"from": "InputBar", "to": "CommandPalette", "type": "arkts_import"},
+    {"from": "ThinkingPanel", "to": "PhraseLoader", "type": "arkts_import"},
+    {"from": "SettingsPage", "to": "ProviderLoader", "type": "arkts_import"},
+    {"from": "ArkMessage", "to": "ArkContentPart", "type": "arkts_import"},
+    {"from": "RustAgentBridge", "to": "native_bridge.cpp", "type": "NAPI_call"},
+    {"from": "native_bridge.cpp", "to": "ffi.rs", "type": "C_ABI_call"},
+    {"from": "ffi.rs", "to": "json_router.rs", "type": "rust_internal"},
+    {"from": "json_router.rs", "to": "agent/chat.rs", "type": "rust_internal"},
+    {"from": "json_router.rs", "to": "agent/session.rs", "type": "rust_internal"},
+    {"from": "json_router.rs", "to": "agent/skills.rs", "type": "rust_internal"},
+    {"from": "json_router.rs", "to": "agent/abort.rs", "type": "rust_internal"},
+    {"from": "json_router.rs", "to": "sandbox/validate.rs", "type": "rust_internal"},
+    {"from": "json_router.rs", "to": "types/message.rs", "type": "rust_internal"},
+    {"from": "ffi.rs", "to": "agent/session.rs", "type": "rust_internal"},
+    {"from": "ffi.rs", "to": "agent/rag.rs", "type": "rust_internal"},
+    {"from": "ffi.rs", "to": "agent/search.rs", "type": "rust_internal"},
+    {"from": "ffi.rs", "to": "json_router.rs", "type": "rust_internal"},
+    {"from": "agent/chat.rs", "to": "agent/abort.rs", "type": "rust_internal"},
+    {"from": "agent/chat.rs", "to": "types/message.rs", "type": "rust_internal"},
+    {"from": "agent/loop_engine.rs", "to": "agent/abort.rs", "type": "rust_internal"},
+    {"from": "tools/subagent.rs", "to": "agent/abort.rs", "type": "rust_internal"},
+    {"from": "tools/web.rs", "to": "ffi.rs", "type": "C_callback"},
+    {"from": "agent/context.rs", "to": "types/message.rs", "type": "rust_internal"}
+  ],
+  "blast_radius": {
+    "types/message.rs": {"direct": 3, "indirect": 4, "total": 7, "severity": "high"},
+    "ffi.rs": {"direct": 2, "indirect": 17, "total": 19, "severity": "critical"},
+    "json_router.rs": {"direct": 1, "indirect": 14, "total": 15, "severity": "critical"},
+    "agent/abort.rs": {"direct": 4, "indirect": 6, "total": 10, "severity": "medium"},
+    "RustAgentBridge": {"direct": 1, "indirect": 16, "total": 17, "severity": "critical"},
+    "native_bridge.cpp": {"direct": 1, "indirect": 17, "total": 18, "severity": "critical"},
+    "ChatView": {"direct": 5, "indirect": 12, "total": 17, "severity": "critical"},
+    "agent/chat.rs": {"direct": 1, "indirect": 3, "total": 4, "severity": "high"}
+  },
+  "cycles": [],
+  "stub_modules": [
+    "agent/context.rs",
+    "agent/loop_engine.rs",
+    "agent/pipeline.rs",
+    "tools/file.rs",
+    "tools/mcp.rs",
+    "tools/subagent.rs",
+    "tools/web.rs"
+  ],
+  "choke_points": [
+    {"node": "json_router.rs", "reason": "Single dispatch point for all 14 actions"},
+    {"node": "native_bridge.cpp", "reason": "Only cross-boundary bridge; 7 NAPI exports, 2 tsfn channels"},
+    {"node": "ffi.rs", "reason": "C ABI contract — any signature change breaks all platforms"}
+  ]
+}

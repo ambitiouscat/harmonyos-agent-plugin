@@ -21,7 +21,7 @@ export struct MessageBubble {
 
       ForEach(this.message.parts, (part: ArkContentPart) => {
         if (part.type === 'text') {
-          MarkdownView({ content: part.text })
+          MarkdownView({ content: part.text, isStreaming: this.isStreaming })
         } else if (part.type === 'reasoning') {
           ThinkingPanel({ content: part.text, collapsed: part.collapsed, isThinking: this.isThinking, isStreaming: this.isStreaming })
         } else if (part.type === 'tool_call') {

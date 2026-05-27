@@ -3,16 +3,22 @@ use std::ffi::{CStr, CString};
 #[cfg(feature = "node")]
 use napi_derive::napi;
 
+/// Safe wrapper around rust_agent_free_str to match non-unsafe FreeStrFn signature.
+#[cfg(feature = "node")]
+extern "C" fn node_free_str(ptr: *mut std::os::raw::c_char) {
+    unsafe { crate::ffi::rust_agent_free_str(ptr) }
+}
+
 /// Initialize the Node.js agent with configuration JSON.
 /// Node environment has native std::fs + ureq, so no JS IO callbacks needed.
 #[cfg(feature = "node")]
 #[napi]
-pub fn node_agent_init(config_json: Option<String>) -> bool {
+pub fn node_agent_init(_config_json: Option<String>) -> bool {
     // Build SystemCallbacks with no-op IO — Node uses native Rust I/O
     let cbs = crate::ffi::SystemCallbacks {
         post_fn: None,
         stream_post_fn: None,
-        free_str_fn: Some(crate::ffi::rust_agent_free_str),
+        free_str_fn: Some(node_free_str),
     };
 
     crate::ffi::rust_agent_init(cbs)

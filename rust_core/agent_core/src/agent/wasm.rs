@@ -26,6 +26,12 @@ extern "C" fn wasm_on_chunk_bridge(chunk_data: *const c_char, event_type: u8) {
     }
 }
 
+/// Safe wrapper around rust_agent_free_str for wasm callbacks.
+#[cfg(feature = "wasm")]
+extern "C" fn wasm_free_str(ptr: *mut c_char) {
+    unsafe { crate::ffi::rust_agent_free_str(ptr) }
+}
+
 /// C ABI bridge: invoked by Rust core for HTTP POST (IO proxy).
 /// Calls into the JS IO callback and returns the response string.
 #[cfg(feature = "wasm")]
@@ -55,7 +61,7 @@ pub fn wasm_agent_init(on_chunk: js_sys::Function, on_io: js_sys::Function) -> b
     let cbs = crate::ffi::SystemCallbacks {
         post_fn: Some(wasm_post_fn_bridge),
         stream_post_fn: None,
-        free_str_fn: Some(crate::ffi::rust_agent_free_str),
+        free_str_fn: Some(wasm_free_str),
     };
 
     crate::ffi::rust_agent_init(cbs)

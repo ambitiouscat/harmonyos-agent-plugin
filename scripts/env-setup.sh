@@ -16,8 +16,6 @@ DEVECO_HOME="D:/Program Files/Huawei/DevEco Studio"
 DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
 DEVECO_NODE="$DEVECO_HOME/tools/node/node.exe"
 DEVECO_HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
-HVIGOR_CMD="$DEVECO_NODE $DEVECO_HVIGOR"
-
 NDK_BASE="D:/Program Files/Huawei/DevEco Studio/sdk/default/openharmony/native"
 NDK_BIN="$NDK_BASE/llvm/bin"
 NDK_SYSROOT="$NDK_BASE/sysroot"

@@ -1,4 +1,6 @@
 pub mod abort;
+pub mod session;
+pub mod skills;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod chat;
 pub mod context;

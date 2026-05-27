@@ -15,8 +15,8 @@ static AGENT_CONFIG: RwLock<serde_json::Value> =
 /// WASM virtual filesystem for RAG and search operations.
 /// Key: file path, Value: file content
 #[cfg(target_arch = "wasm32")]
-static VFS: RwLock<std::collections::HashMap<String, String>> =
-    RwLock::new(std::collections::HashMap::new());
+static VFS: std::sync::LazyLock<RwLock<std::collections::HashMap<String, String>>> =
+    std::sync::LazyLock::new(|| RwLock::new(std::collections::HashMap::new()));
 
 pub fn get_config() -> serde_json::Value {
     AGENT_CONFIG.read().unwrap().clone()
@@ -31,11 +31,202 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
             message: Some("pong".into()),
             error: None,
         },
-        "load_session" => AgentResponse {
-            status: "ok".into(),
-            message: Some(r#"{"session_id":"stub"}"#.into()),
-            error: None,
-        },
+        "init_session" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(args) => {
+                    let files_dir = args["files_dir"].as_str().unwrap_or("");
+                    crate::agent::session::init_session_manager(files_dir);
+                    AgentResponse {
+                        status: "ok".into(),
+                        message: Some("Session manager initialized".into()),
+                        error: None,
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid args: {}", e)),
+                },
+            }
+        }
+        "get_registered_skills" => {
+            let skills = crate::agent::skills::SKILLS.read().unwrap();
+            let all = skills.get_all();
+            AgentResponse {
+                status: "ok".into(),
+                message: Some(serde_json::to_string(&all).unwrap_or_default()),
+                error: None,
+            }
+        }
+        "load_session" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(args) => {
+                    let session_id = args["session_id"].as_str().unwrap_or("");
+                    if session_id.is_empty() {
+                        AgentResponse {
+                            status: "error".into(),
+                            message: None,
+                            error: Some("load_session requires session_id".into()),
+                        }
+                    } else {
+                        let mgr = crate::agent::session::SESSION_MGR.read().unwrap();
+                        match mgr.as_ref() {
+                            Some(m) => match m.load_session(session_id) {
+                                Ok(s) => AgentResponse {
+                                    status: "ok".into(),
+                                    message: Some(
+                                        serde_json::to_string(&s).unwrap_or_default(),
+                                    ),
+                                    error: None,
+                                },
+                                Err(e) => AgentResponse {
+                                    status: "error".into(),
+                                    message: None,
+                                    error: Some(e),
+                                },
+                            },
+                            None => AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some("Session manager not initialized".into()),
+                            },
+                        }
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid args: {}", e)),
+                },
+            }
+        }
+        "create_session" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(args) => {
+                    let title = args["title"].as_str().unwrap_or("New Session");
+                    let mgr = crate::agent::session::SESSION_MGR.read().unwrap();
+                    match mgr.as_ref() {
+                        Some(m) => match m.create_session(title) {
+                            Ok(s) => AgentResponse {
+                                status: "ok".into(),
+                                message: Some(
+                                    serde_json::to_string(&s).unwrap_or_default(),
+                                ),
+                                error: None,
+                            },
+                            Err(e) => AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some(e),
+                            },
+                        },
+                        None => AgentResponse {
+                            status: "error".into(),
+                            message: None,
+                            error: Some("Session manager not initialized".into()),
+                        },
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid args: {}", e)),
+                },
+            }
+        }
+        "list_sessions" => {
+            let mgr = crate::agent::session::SESSION_MGR.read().unwrap();
+            match mgr.as_ref() {
+                Some(m) => match m.list_sessions() {
+                    Ok(list) => AgentResponse {
+                        status: "ok".into(),
+                        message: Some(serde_json::to_string(&list).unwrap_or_default()),
+                        error: None,
+                    },
+                    Err(e) => AgentResponse {
+                        status: "error".into(),
+                        message: None,
+                        error: Some(e),
+                    },
+                },
+                None => AgentResponse {
+                    status: "ok".into(),
+                    message: Some("[]".into()),
+                    error: None,
+                },
+            }
+        }
+        "delete_session" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(args) => {
+                    let session_id = args["session_id"].as_str().unwrap_or("");
+                    if session_id.is_empty() {
+                        AgentResponse {
+                            status: "error".into(),
+                            message: None,
+                            error: Some("delete_session requires session_id".into()),
+                        }
+                    } else {
+                        let mgr = crate::agent::session::SESSION_MGR.read().unwrap();
+                        match mgr.as_ref() {
+                            Some(m) => match m.delete_session(session_id) {
+                                Ok(()) => AgentResponse {
+                                    status: "ok".into(),
+                                    message: Some("Session deleted".into()),
+                                    error: None,
+                                },
+                                Err(e) => AgentResponse {
+                                    status: "error".into(),
+                                    message: None,
+                                    error: Some(e),
+                                },
+                            },
+                            None => AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some("Session manager not initialized".into()),
+                            },
+                        }
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid args: {}", e)),
+                },
+            }
+        }
+        "save_session" => {
+            match serde_json::from_str::<crate::agent::session::Session>(args_json) {
+                Ok(session) => {
+                    let mgr = crate::agent::session::SESSION_MGR.read().unwrap();
+                    match mgr.as_ref() {
+                        Some(m) => match m.save_session(&session) {
+                            Ok(()) => AgentResponse {
+                                status: "ok".into(),
+                                message: Some("Session saved".into()),
+                                error: None,
+                            },
+                            Err(e) => AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some(e),
+                            },
+                        },
+                        None => AgentResponse {
+                            status: "error".into(),
+                            message: None,
+                            error: Some("Session manager not initialized".into()),
+                        },
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid session: {}", e)),
+                },
+            }
+        }
         "configure" => {
             match serde_json::from_str::<serde_json::Value>(args_json) {
                 Ok(cfg) => {
@@ -77,10 +268,11 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                 if let Ok(req) = request {
                     if let AgentRequest::VfsWrite { path, content } = req {
                         if let Ok(mut vfs) = VFS.write() {
+                            let clen = content.len();
                             vfs.insert(path.clone(), content);
                             return serde_json::to_string(&AgentResponse {
                                 status: "ok".into(),
-                                message: Some(format!("Wrote {} bytes to VFS: {}", content.len(), path)),
+                                message: Some(format!("Wrote {} bytes to VFS: {}", clen, path)),
                                 error: None,
                             }).unwrap();
                         }

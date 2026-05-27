@@ -2,13 +2,18 @@ import nativeBridge from 'libnative_bridge.so';
 
 type StreamCallback = (data: string, eventType: number) => void;
 type IoCallback = (url: string, body: string) => string;
+type OfflineCallback = (isOffline: boolean) => void;
 
 export class RustAgentBridge {
   private static instance: RustAgentBridge | null = null;
 
   private streamCallback: StreamCallback | null = null;
   private ioCallback: IoCallback | null = null;
+  private offlineCallback: OfflineCallback | null = null;
   private initialized: boolean = false;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 3;
+  private isOffline: boolean = false;
 
   static getInstance(): RustAgentBridge {
     if (RustAgentBridge.instance === null) {
@@ -106,6 +111,83 @@ export class RustAgentBridge {
    */
   public scanDir(dirPath: string): string {
     return nativeBridge.scanDir(dirPath);
+  }
+
+  /**
+   * Initialize the session manager with the host's sandbox files directory.
+   * Must be called once after bridge init to enable session CRUD.
+   */
+  public initSession(filesDir: string): string {
+    return this.call('init_session', JSON.stringify({ files_dir: filesDir }));
+  }
+
+  /**
+   * Register a callback for offline/online state changes.
+   */
+  public onOfflineChange(cb: OfflineCallback): void {
+    this.offlineCallback = cb;
+  }
+
+  /**
+   * Retry an action with exponential backoff on failure.
+   * Returns the result if successful, or the last error after max retries.
+   */
+  public async callWithRetry(action: string, args: string): Promise<string> {
+    let lastError = '';
+    for (let attempt = 0; attempt <= this.maxReconnectAttempts; attempt++) {
+      try {
+        const result = this.call(action, args);
+        const parsed = JSON.parse(result) as Record<string, string>;
+        if (parsed['status'] === 'error') {
+          lastError = parsed['error'] || 'Unknown error';
+        } else {
+          this.reconnectAttempts = 0;
+          if (this.isOffline) {
+            this.isOffline = false;
+            if (this.offlineCallback) this.offlineCallback(false);
+          }
+          return result;
+        }
+      } catch (e) {
+        lastError = `${e}`;
+      }
+
+      if (attempt < this.maxReconnectAttempts) {
+        this.reconnectAttempts = attempt + 1;
+        const delayMs = Math.min(500 * Math.pow(2, attempt), 5000);
+        console.info(`[Bridge] Retry ${attempt + 1}/${this.maxReconnectAttempts} in ${delayMs}ms`);
+        await this.sleep(delayMs);
+      }
+    }
+
+    this.reconnectAttempts = this.maxReconnectAttempts;
+    if (!this.isOffline) {
+      this.isOffline = true;
+      if (this.offlineCallback) this.offlineCallback(true);
+    }
+    return `{"status":"error","error":"All retries exhausted: ${lastError}"}`;
+  }
+
+  /**
+   * Check if the bridge is currently in offline mode.
+   */
+  public getIsOffline(): boolean {
+    return this.isOffline;
+  }
+
+  /**
+   * Reset offline state (called when user manually retries from UI).
+   */
+  public resetOffline(): void {
+    this.isOffline = false;
+    this.reconnectAttempts = 0;
+    if (this.offlineCallback) this.offlineCallback(false);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), ms);
+    });
   }
 
   /**

@@ -17,9 +17,28 @@ fn test_unknown_action() {
 
 #[test]
 fn test_load_session_dispatch() {
-    let resp = json_router::dispatch("load_session", r#"{"action":"load_session","session_id":"abc"}"#);
-    assert!(resp.contains("stub"));
-    assert!(resp.contains(r#""status":"ok""#));
+    use agent_core::agent::session;
+    let dir = std::env::temp_dir().join("hmos_test_ffi_sess");
+    let _ = std::fs::remove_dir_all(&dir);
+    session::init_session_manager(dir.to_str().unwrap());
+
+    let resp = json_router::dispatch("load_session", r#"{"session_id":"abc"}"#);
+    // Without creating a session first, load should return an error
+    assert!(resp.contains(r#""status":"error""#));
+
+    // Create a session, then load it
+    let create_resp = json_router::dispatch("create_session", r#"{"title":"test"}"#);
+    assert!(create_resp.contains(r#""status":"ok""#));
+    // Extract session_id from create response
+    let v: serde_json::Value = serde_json::from_str(&create_resp).unwrap();
+    let session_json: serde_json::Value =
+        serde_json::from_str(v["message"].as_str().unwrap()).unwrap();
+    let sid = session_json["meta"]["id"].as_str().unwrap();
+
+    let load_args = format!(r#"{{"session_id":"{}"}}"#, sid);
+    let resp2 = json_router::dispatch("load_session", &load_args);
+    assert!(resp2.contains(r#""status":"ok""#));
+    assert!(resp2.contains(sid));
 }
 
 #[test]

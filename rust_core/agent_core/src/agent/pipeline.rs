@@ -3,6 +3,32 @@ use std::time::{Duration, Instant};
 /// Maximum time to accumulate deltas before a forced flush.
 const THROTTLE_WINDOW_MS: u64 = 16;
 
+/// Exponential backoff configuration for SSE reconnection.
+#[derive(Debug, Clone)]
+pub struct ReconnectConfig {
+    pub max_retries: u32,
+    pub base_delay_ms: u64,
+    pub max_delay_ms: u64,
+}
+
+impl Default for ReconnectConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            base_delay_ms: 500,
+            max_delay_ms: 5000,
+        }
+    }
+}
+
+impl ReconnectConfig {
+    pub fn delay_for_attempt(&self, attempt: u32) -> Duration {
+        let delay_ms = self.base_delay_ms * 2u64.pow(attempt);
+        let capped = delay_ms.min(self.max_delay_ms);
+        Duration::from_millis(capped)
+    }
+}
+
 /// State machine for incremental SSE delta merging.
 ///
 /// Accumulates partial JSON fragments from streaming responses and emits

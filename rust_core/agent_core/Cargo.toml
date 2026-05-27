@@ -17,8 +17,6 @@ sha2 = "0.10"
 ignore = "0.4"
 grep-regex = "0.1"
 grep-searcher = "0.1"
-ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
-
 # WASM target dependencies
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
@@ -29,6 +27,12 @@ napi-derive = { version = "2", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
 
 [features]
 default = []

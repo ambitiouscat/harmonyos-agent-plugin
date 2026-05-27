@@ -21,6 +21,9 @@ pub enum AgentRequest {
     ChatStream { messages: Vec<ChatMessage> },
     RunStep { messages: Vec<Message> },
     LoadSession { session_id: String },
+    CreateSession { title: String },
+    DeleteSession { session_id: String },
+    SaveSession { session: serde_json::Value },
     TestStream {
         #[serde(default = "default_chunks")]
         chunks: u32,

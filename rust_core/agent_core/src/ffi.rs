@@ -35,6 +35,17 @@ pub extern "C" fn rust_agent_init(callbacks: SystemCallbacks) -> bool {
     CALLBACKS.set(callbacks).is_ok()
 }
 
+/// Initialize the session manager with the host's sandbox files directory.
+///
+/// # Safety
+/// `files_dir` must be a valid null-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn rust_agent_init_session(files_dir: *const c_char) -> bool {
+    let dir = CStr::from_ptr(files_dir).to_str().unwrap_or(".");
+    crate::agent::session::init_session_manager(dir);
+    true
+}
+
 /// Unified JSON message router.
 ///
 /// # Safety
