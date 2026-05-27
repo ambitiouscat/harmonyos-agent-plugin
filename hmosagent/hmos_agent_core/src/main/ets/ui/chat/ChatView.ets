@@ -21,8 +21,17 @@ export struct ChatView {
   @Local isStreaming: boolean = false;
   @Local showSettings: boolean = false;
   @Local bridgeReady: boolean = false;
+  @Local statusPhrase: string = '';
+  @Local statusElapsed: number = 0;
+  @Local statusVisible: boolean = false;
   private bridge: RustAgentBridge = RustAgentBridge.getInstance();
   private streamCtrl: SseStreamController | null = null;
+  private phraseQueue: string[] = [];
+  private queueIndex: number = 0;
+  private phraseTimerId: number = -1;
+  private elapsedTimerId: number = -1;
+  private phraseStyle: string = 'claude-original';
+  private loader = getPhraseLoader();
 
   aboutToAppear(): void {
     this.initBridge();
@@ -49,8 +58,10 @@ export struct ChatView {
           this.applyDelta(data);
         } else if (eventType === 1) {
           this.isStreaming = false;
+          this.stopStatusSpinner();
         } else if (eventType === 2) {
           this.isStreaming = false;
+          this.stopStatusSpinner();
         }
       });
 
@@ -168,6 +179,7 @@ export struct ChatView {
     this.addUserMessage(text);
     this.bridge.resetAbort();
     this.isStreaming = true;
+    this.startStatusSpinner();
     console.info('[ChatView] send via Rust/ureq');
 
     // Build conversation history
@@ -190,6 +202,7 @@ export struct ChatView {
       const parsed = JSON.parse(res) as Record<string, string>;
       if (parsed['status'] === 'error') {
         this.isStreaming = false;
+        this.stopStatusSpinner();
         const reply = new ArkMessage('assistant');
         reply.parts = [new ArkContentPart('text')];
         reply.parts[0].text = `Error: ${parsed['error'] || 'Unknown error'}`;
@@ -197,6 +210,7 @@ export struct ChatView {
       }
     } catch (e) {
       this.isStreaming = false;
+      this.stopStatusSpinner();
       const reply = new ArkMessage('assistant');
       reply.parts = [new ArkContentPart('text')];
       reply.parts[0].text = `Chat failed: ${e}`;
@@ -209,6 +223,88 @@ export struct ChatView {
       this.bridge.abort();
     }
     this.isStreaming = false;
+    this.stopStatusSpinner();
+  }
+
+  // --- Status spinner (above InputBar) ---
+
+  startStatusSpinner(): void {
+    this.loadPhraseStyle();
+    this.buildStatusQueue();
+    this.statusElapsed = 0;
+    this.statusVisible = true;
+    if (this.phraseQueue.length === 0) {
+      this.statusPhrase = 'Thinking';
+      return;
+    }
+    this.statusPhrase = this.phraseQueue[0];
+    this.queueIndex = 0;
+
+    this.elapsedTimerId = setInterval(() => {
+      this.statusElapsed++;
+    }, 1000);
+
+    this.phraseTimerId = setInterval(() => {
+      this.queueIndex++;
+      if (this.queueIndex >= this.phraseQueue.length) {
+        this.buildStatusQueue();
+        this.queueIndex = 0;
+      }
+      this.statusPhrase = this.phraseQueue[this.queueIndex];
+    }, 1500);
+  }
+
+  stopStatusSpinner(): void {
+    if (this.phraseTimerId !== -1) {
+      clearInterval(this.phraseTimerId);
+      this.phraseTimerId = -1;
+    }
+    if (this.elapsedTimerId !== -1) {
+      clearInterval(this.elapsedTimerId);
+      this.elapsedTimerId = -1;
+    }
+    this.statusVisible = false;
+  }
+
+  buildStatusQueue(): void {
+    const words = this.loader.getSpinnerPhrases(this.phraseStyle);
+    if (words.length === 0) {
+      this.phraseQueue = ['Thinking'];
+      return;
+    }
+    this.phraseQueue = this.shuffleArr([...words]);
+    if (this.phraseQueue.length > 1 && this.phraseQueue[0] === this.statusPhrase) {
+      const tmp = this.phraseQueue[0];
+      this.phraseQueue[0] = this.phraseQueue[1];
+      this.phraseQueue[1] = tmp;
+    }
+  }
+
+  shuffleArr(arr: string[]): string[] {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  formatElapsed(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }
+
+  loadPhraseStyle(): void {
+    try {
+      const val = AppStorage.get<string>('thinking_phrase_style');
+      if (val) {
+        this.phraseStyle = val;
+      }
+    } catch (_e) {
+      this.phraseStyle = 'claude-original';
+    }
   }
 
   build() {
@@ -247,6 +343,20 @@ export struct ChatView {
         }
         .layoutWeight(1)
         .width('100%')
+      }
+
+      if (this.statusVisible) {
+        Row() {
+          Text(this.statusPhrase + '…  (' + this.formatElapsed(this.statusElapsed) + ')')
+            .fontSize(12)
+            .fontColor('#888')
+            .fontStyle(FontStyle.Italic)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Blank()
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, top: 4, bottom: 2 })
       }
 
       InputBar({
