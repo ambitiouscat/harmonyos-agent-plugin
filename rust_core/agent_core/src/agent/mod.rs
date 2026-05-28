@@ -10,6 +10,7 @@ pub mod platform_harmonyos;
 pub mod platform_wasm;
 pub mod prompt_assembler;
 pub mod session;
+pub mod skill_loader;
 pub mod skills;
 pub mod task_state;
 #[cfg(not(target_arch = "wasm32"))]
