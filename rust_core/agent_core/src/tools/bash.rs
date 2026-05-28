@@ -61,12 +61,22 @@ pub fn bash_handler(args: Value, _sandbox_root: &str) -> Result<String, String> 
 
     #[cfg(not(target_os = "windows"))]
     let output = {
-        let child = Command::new("sh")
+        // Try /bin/sh first (absolute path for sandboxed environments like HarmonyOS),
+        // fall back to "sh" (PATH lookup for standard Linux).
+        let shell = if cfg!(target_os = "linux") && std::path::Path::new("/bin/sh").exists() {
+            "/bin/sh"
+        } else {
+            "sh"
+        };
+        let child = Command::new(shell)
             .args(["-c", command])
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| format!("Failed to execute: {}", e))?;
+            .map_err(|e| format!(
+                "Shell execution unavailable: {}. The current environment does not provide a shell binary via PATH or /bin/sh.",
+                e
+            ))?;
 
         child
             .wait_with_output()

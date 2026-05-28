@@ -3,6 +3,11 @@ pub mod compaction;
 pub mod hooks;
 pub mod memory;
 pub mod permission;
+pub mod platform;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod platform_harmonyos;
+#[cfg(target_arch = "wasm32")]
+pub mod platform_wasm;
 pub mod prompt_assembler;
 pub mod session;
 pub mod skills;

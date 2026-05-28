@@ -1,5 +1,7 @@
 use crate::agent::abort::ABORT_FLAG;
 #[cfg(not(target_arch = "wasm32"))]
+use crate::agent::platform_harmonyos::HarmonyOSHost;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::sandbox::validate::STREAM_CB;
 use crate::types::message::{AgentRequest, AgentResponse};
 use std::ffi::CString;
@@ -36,9 +38,11 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                 Ok(args) => {
                     let files_dir = args["files_dir"].as_str().unwrap_or("");
                     crate::agent::session::init_session_manager(files_dir);
+                    // Initialize memory store alongside session manager
+                    crate::agent::memory::init_memory_store(&format!("{}/.memory", files_dir));
                     AgentResponse {
                         status: "ok".into(),
-                        message: Some("Session manager initialized".into()),
+                        message: Some("Session and memory store initialized".into()),
                         error: None,
                     }
                 }
@@ -334,6 +338,10 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                                 })
                             );
 
+                            // Construct platform host from config
+                            let api_key = config["api_key"].as_str().unwrap_or("");
+                            let api_base_url = config["base_url"].as_str().unwrap_or("https://api.anthropic.com");
+
                             let on_text = |text: &str| {
                                 if let Some(cb) = stream_cb {
                                     let json = serde_json::json!({"type":"text","text":text});
@@ -358,7 +366,9 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
 
                             let result = crate::agent::tool_registry::with_registry(|r| {
                                 let mut msgs = internal_messages;
+                                let h = HarmonyOSHost::new(&sandbox_root, api_key, api_base_url);
                                 crate::agent::loop_engine::agent_loop_run(
+                                    &h,
                                     &config,
                                     &mut msgs,
                                     r,

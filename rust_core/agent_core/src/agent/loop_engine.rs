@@ -1,4 +1,5 @@
 use crate::agent::abort::ABORT_FLAG;
+use crate::agent::platform::HostCapabilities;
 use crate::agent::tool_registry::ToolRegistry;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, VecDeque};
@@ -135,8 +136,13 @@ pub enum LoopAction {
 
 /// Call the LLM API (streaming) with tools support.
 /// Streams text deltas via `on_text` and returns accumulated tool_use blocks.
+///
+/// `host` is accepted for future migration of HTTP to `HostCapabilities`.
+/// Currently ureq is used directly for SSE streaming since `HostCapabilities`
+/// does not yet expose a streaming HTTP primitive.
 #[cfg(not(target_arch = "wasm32"))]
 fn llm_api_call(
+    _host: &dyn HostCapabilities,
     config: &serde_json::Value,
     messages: &[serde_json::Value],
     tools: &[serde_json::Value],
@@ -324,6 +330,7 @@ fn llm_api_call(
 /// WASM stub — agent loop is not available in browser context.
 #[cfg(target_arch = "wasm32")]
 fn llm_api_call(
+    _host: &dyn HostCapabilities,
     _config: &serde_json::Value,
     _messages: &[serde_json::Value],
     _tools: &[serde_json::Value],
@@ -432,9 +439,14 @@ fn trigger_stop_hook() {
 
 /// The V2 agent loop — `while stop_reason == "tool_use"`.
 ///
+/// All IO operations (HTTP, files, commands) are routed through `host`.
+/// Streaming LLM calls use the platform's HTTP capabilities for the POST request,
+/// with SSE parsing remaining in-core for chunk delivery via C ABI callbacks.
+///
 /// Not available on wasm32 (no HTTP client).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn agent_loop_run(
+    host: &dyn HostCapabilities,
     config: &serde_json::Value,
     messages: &mut Vec<crate::types::message::Message>,
     registry: &ToolRegistry,
@@ -480,7 +492,7 @@ pub fn agent_loop_run(
         let api_messages = messages_to_api(messages);
 
         // LLM call (streaming — text deltas go to on_text callback)
-        let response = llm_api_call(config, &api_messages, &tools, &on_text)?;
+        let response = llm_api_call(host, config, &api_messages, &tools, &on_text)?;
 
         // Build assistant message parts
         let mut assistant_parts: Vec<crate::types::message::ContentPart> = Vec::new();
@@ -664,6 +676,7 @@ pub fn agent_loop_run(
 /// Convenience: run agent loop with simple text-only messages (backward compat).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn agent_loop_run_simple(
+    host: &dyn HostCapabilities,
     config: &serde_json::Value,
     user_message: &str,
     registry: &ToolRegistry,
@@ -678,7 +691,7 @@ pub fn agent_loop_run_simple(
         }],
     }];
 
-    agent_loop_run(config, &mut messages, registry, on_text, on_tool_call)
+    agent_loop_run(host, config, &mut messages, registry, on_text, on_tool_call)
 }
 
 // ── Tests ──

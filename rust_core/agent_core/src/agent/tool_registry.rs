@@ -174,7 +174,8 @@ fn register_builtin_tools(registry: &mut ToolRegistry) {
         handler: crate::tools::edit::edit_handler,
     });
 
-    // Bash
+    // Bash (not available on WASM)
+    #[cfg(not(target_arch = "wasm32"))]
     registry.register(ToolDef {
         name: "bash".into(),
         description: "Execute a bash command in a sandboxed environment.".into(),
@@ -242,13 +243,13 @@ fn register_builtin_tools(registry: &mut ToolRegistry) {
     // Memory tools (Tier 2)
     registry.register(ToolDef {
         name: "memory_save".into(),
-        description: "Save a persistent memory for future sessions. Types: user, feedback, project, reference.".into(),
+        description: "Save a persistent memory for future sessions. Types: session, conversation, knowledge, preference, task, error, insight.".into(),
         input_schema: serde_json::json!({
             "type": "object",
             "properties": {
                 "name": {"type": "string", "description": "Short kebab-case slug (e.g. user-prefers-tabs)"},
                 "description": {"type": "string", "description": "One-line description for the MEMORY.md index"},
-                "memory_type": {"type": "string", "enum": ["user", "feedback", "project", "reference"]},
+                "memory_type": {"type": "string", "enum": ["session", "conversation", "knowledge", "preference", "task", "error", "insight"]},
                 "body": {"type": "string", "description": "Full memory content in markdown"}
             },
             "required": ["name", "description", "memory_type", "body"]
@@ -273,7 +274,8 @@ fn register_builtin_tools(registry: &mut ToolRegistry) {
         handler: crate::tools::memory_tool::memory_search_handler,
     });
 
-    // SubAgent tool (Tier 2)
+    // SubAgent tool (Tier 2) — not available on WASM
+    #[cfg(not(target_arch = "wasm32"))]
     registry.register(ToolDef {
         name: "subagent".into(),
         description: "Spawn an isolated sub-agent to handle a task independently. Returns a summary of the result.".into(),

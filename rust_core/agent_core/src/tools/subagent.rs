@@ -43,11 +43,10 @@ pub fn spawn_subagent(_description: &str, _workdir: &PathBuf, _depth: usize) -> 
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn run_subagent_inner(description: &str, workdir: &PathBuf, depth: usize) -> Result<String, String> {
+fn run_subagent_inner(description: &str, workdir: &PathBuf, _depth: usize) -> Result<String, String> {
     use crate::agent::loop_engine::agent_loop_run;
     use crate::agent::tool_registry::ToolRegistry;
-    use crate::agent::abort::ABORT_FLAG;
-    use std::sync::atomic::Ordering;
+    use crate::agent::platform_harmonyos::HarmonyOSHost;
 
     // Build a fresh ToolRegistry with only safe tools (no SubAgent).
     let mut registry = ToolRegistry::new(workdir.to_str().unwrap_or("."));
@@ -66,13 +65,17 @@ fn run_subagent_inner(description: &str, workdir: &PathBuf, depth: usize) -> Res
     }];
 
     let config = crate::json_router::get_config();
+    let sandbox_root = config["sandbox_root"].as_str().unwrap_or(".");
+    let api_key = config["api_key"].as_str().unwrap_or("");
+    let api_base_url = config["base_url"].as_str().unwrap_or("https://api.anthropic.com");
+    let host = HarmonyOSHost::new(sandbox_root, api_key, api_base_url);
 
     // Suppress streaming output from sub-agent (only parent sees text).
     let on_text = |_text: &str| {};
     let on_tool = |_name: &str, _args: &str| {};
 
     // Run the agent loop with a fresh 30-turn limit.
-    let outcome = agent_loop_run(&config, &mut messages, &registry, on_text, on_tool)?;
+    let outcome = agent_loop_run(&host, &config, &mut messages, &registry, on_text, on_tool)?;
 
     // Collect the final assistant text as a summary.
     let summary = messages

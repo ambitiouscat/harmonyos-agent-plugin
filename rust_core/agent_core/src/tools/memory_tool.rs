@@ -5,12 +5,20 @@ use crate::agent::memory::{with_memory_store, MemoryType};
 pub fn memory_save_handler(args: Value, _sandbox_root: &str) -> Result<String, String> {
     let name = args["name"].as_str().ok_or("Missing 'name'")?;
     let description = args["description"].as_str().ok_or("Missing 'description'")?;
-    let mem_type = match args["memory_type"].as_str().unwrap_or("user") {
-        "user" => MemoryType::User,
-        "feedback" => MemoryType::Feedback,
-        "project" => MemoryType::Project,
-        "reference" => MemoryType::Reference,
-        other => return Err(format!("Invalid type: {}", other)),
+    let mem_type = match args["memory_type"].as_str().unwrap_or("knowledge") {
+        "session" => MemoryType::Session,
+        "conversation" => MemoryType::Conversation,
+        "knowledge" => MemoryType::Knowledge,
+        "preference" => MemoryType::Preference,
+        "task" => MemoryType::Task,
+        "error" => MemoryType::Error,
+        "insight" => MemoryType::Insight,
+        // Legacy aliases
+        "user" => MemoryType::Preference,
+        "feedback" => MemoryType::Insight,
+        "project" => MemoryType::Knowledge,
+        "reference" => MemoryType::Knowledge,
+        other => return Err(format!("Invalid memory type '{}'. Valid types: session, conversation, knowledge, preference, task, error, insight", other)),
     };
     let body = args["body"].as_str().ok_or("Missing 'body'")?;
 
