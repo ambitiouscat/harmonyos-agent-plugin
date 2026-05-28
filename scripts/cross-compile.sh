@@ -68,14 +68,13 @@ mkdir -p "$WSL_BUILD_DIR/.cargo"
 cat > "$WSL_BUILD_DIR/.cargo/config.toml" << CFGEOF
 # WSL cross-compilation config
 # x86_64: gcc (native) for ring C code; OHOS clang for linking
-# aarch64: OHOS clang for both C and linking
+# aarch64: native gcc for ring C code; OHOS clang for linking
 
 [env]
-CC_aarch64_unknown_linux_musl = "$HOME/bin/aarch64-ohos-clang"
-AR_aarch64_unknown_linux_musl = "$HOME/bin/ohos-ar"
+CC_aarch64_unknown_linux_musl = "aarch64-linux-gnu-gcc"
+AR_aarch64_unknown_linux_musl = "aarch64-linux-gnu-ar"
 CC_x86_64_unknown_linux_musl = "gcc"
 AR_x86_64_unknown_linux_musl = "ar"
-CFLAGS_aarch64_unknown_linux_musl = "--sysroot=$OHOS_SYSROOT"
 
 [target.aarch64-unknown-linux-musl]
 linker = "$HOME/bin/aarch64-ohos-clang"
@@ -100,27 +99,33 @@ cd "$WSL_BUILD_DIR"
 
 # Determine targets
 TARGETS=()
-if [ $# -eq 0 ]; then
+if [ $# -eq 0 ] || [ "$1" = "all" ]; then
     TARGETS=("x86_64-unknown-linux-musl" "aarch64-unknown-linux-musl")
 elif [ "$1" = "x86_64" ]; then
     TARGETS=("x86_64-unknown-linux-musl")
 elif [ "$1" = "aarch64" ]; then
     TARGETS=("aarch64-unknown-linux-musl")
 else
-    echo "Usage: $0 [x86_64|aarch64]"
+    echo "Usage: $0 [all|x86_64|aarch64]"
     exit 1
 fi
 
+BUILD_FAILED=0
 for TARGET in "${TARGETS[@]}"; do
     echo ""
     echo "=== Cross-compiling for $TARGET ==="
 
-    cargo build --release --target "$TARGET"
+    if ! cargo build --release --target "$TARGET"; then
+        echo "!! FAILED: $TARGET"
+        BUILD_FAILED=1
+        continue
+    fi
 
     STATIC_LIB="$WSL_BUILD_DIR/target/$TARGET/release/libagent_core.a"
     if [ ! -f "$STATIC_LIB" ]; then
-        echo "ERROR: $STATIC_LIB not found after build"
-        exit 1
+        echo "!! FAILED: $STATIC_LIB not found"
+        BUILD_FAILED=1
+        continue
     fi
 
     # Determine output directory on Windows side
@@ -134,7 +139,30 @@ for TARGET in "${TARGETS[@]}"; do
     mkdir -p "$DEST_DIR"
     cp -v "$STATIC_LIB" "$DEST_DIR/libagent_core.a"
     ls -lh "$DEST_DIR/libagent_core.a"
+    echo "  -> $TARGET build OK"
 done
 
 echo ""
-echo "=== Cross-compile done ==="
+echo "============================================"
+if [ "$BUILD_FAILED" -eq 0 ]; then
+    echo "  All targets built successfully!"
+else
+    echo "  WARNING: Some targets failed to build."
+fi
+echo ""
+echo "  Output files:"
+for TARGET in "${TARGETS[@]}"; do
+    if [ "$TARGET" = "x86_64-unknown-linux-musl" ]; then
+        DEST_ABI="x86_64"
+    else
+        DEST_ABI="arm64-v8a"
+    fi
+    DEST_FILE="$LIBS_DIR/$DEST_ABI/libagent_core.a"
+    if [ -f "$DEST_FILE" ]; then
+        SIZE=$(ls -lh "$DEST_FILE" | awk '{print $5}')
+        echo "    $DEST_ABI  $SIZE  $DEST_FILE"
+    else
+        echo "    $DEST_ABI  MISSING"
+    fi
+done
+echo "============================================"

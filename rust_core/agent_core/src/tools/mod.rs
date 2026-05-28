@@ -1,5 +1,11 @@
 pub mod file;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod bash;
+pub mod edit;
+pub mod memory_tool;
+pub mod skill;
+pub mod task;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod mcp;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod subagent;

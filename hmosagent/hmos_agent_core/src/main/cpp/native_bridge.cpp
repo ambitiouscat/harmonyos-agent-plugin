@@ -15,6 +15,7 @@
 // ---- Thread-Safe Function handles ----
 static napi_threadsafe_function g_stream_tsfn = nullptr;
 static napi_threadsafe_function g_io_tsfn = nullptr;
+static napi_threadsafe_function g_permission_tsfn = nullptr;
 
 // ---- Blocking IO bridge (Rust post_fn → ArkTS → response) ----
 static std::mutex g_io_mutex;
@@ -376,6 +377,105 @@ static napi_value TestFile(napi_env env, napi_callback_info info) {
     return result;
 }
 
+// ---- Permission Callback Bridge ----
+
+struct PermissionPayload {
+    std::string tool_name;
+    std::string reason;
+};
+
+static void DeliverPermissionToJS(napi_env env, napi_value js_callback,
+                                   void* /*context*/, void* data) {
+    PermissionPayload* payload = static_cast<PermissionPayload*>(data);
+    if (payload == nullptr) return;
+
+    napi_value args[2];
+    napi_create_string_utf8(env, payload->tool_name.c_str(), NAPI_AUTO_LENGTH, &args[0]);
+    napi_create_string_utf8(env, payload->reason.c_str(), NAPI_AUTO_LENGTH, &args[1]);
+
+    napi_value result;
+    napi_call_function(env, nullptr, js_callback, 2, args, &result);
+
+    delete payload;
+}
+
+static void OnPermissionRequest(const char* tool_name, const char* reason) {
+    if (g_permission_tsfn == nullptr) {
+        OH_LOG_WARN(LOG_APP, "OnPermissionRequest: tsfn is null, auto-denying");
+        rust_agent_resolve_permission(false);
+        return;
+    }
+
+    PermissionPayload* payload = new PermissionPayload{
+        .tool_name = tool_name ? std::string(tool_name) : "",
+        .reason = reason ? std::string(reason) : "",
+    };
+
+    napi_status status = napi_call_threadsafe_function(
+        g_permission_tsfn, payload, napi_tsfn_blocking);
+    if (status != napi_ok) {
+        OH_LOG_ERROR(LOG_APP, "OnPermissionRequest: tsfn call failed %{public}d", status);
+        delete payload;
+        rust_agent_resolve_permission(false);
+    }
+}
+
+// ---- NAPI: setPermissionCallback(jsCallback: function): void ----
+static napi_value SetPermissionCallback(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    if (argc < 1) {
+        OH_LOG_ERROR(LOG_APP, "setPermissionCallback: callback required");
+        return nullptr;
+    }
+
+    // Release existing tsfn if any
+    if (g_permission_tsfn != nullptr) {
+        napi_release_threadsafe_function(g_permission_tsfn, napi_tsfn_release);
+        g_permission_tsfn = nullptr;
+    }
+
+    napi_value tsfn_name;
+    napi_create_string_utf8(env, "PermissionCB", NAPI_AUTO_LENGTH, &tsfn_name);
+
+    napi_status status = napi_create_threadsafe_function(
+        env, args[0], nullptr, tsfn_name,
+        0, 1, nullptr, nullptr, nullptr,
+        DeliverPermissionToJS, &g_permission_tsfn);
+
+    if (status != napi_ok) {
+        OH_LOG_ERROR(LOG_APP, "setPermissionCallback: tsfn create failed %{public}d", status);
+        return nullptr;
+    }
+
+    // Register the C callback with Rust
+    rust_agent_set_permission_cb(OnPermissionRequest);
+
+    OH_LOG_INFO(LOG_APP, "setPermissionCallback: registered");
+    return nullptr;
+}
+
+// ---- NAPI: resolvePermission(allowed: boolean): void ----
+static napi_value ResolvePermission(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value args[1];
+    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+
+    if (argc < 1) {
+        OH_LOG_ERROR(LOG_APP, "resolvePermission: allowed boolean required");
+        return nullptr;
+    }
+
+    bool allowed = false;
+    napi_get_value_bool(env, args[0], &allowed);
+
+    rust_agent_resolve_permission(allowed);
+    OH_LOG_INFO(LOG_APP, "resolvePermission: allowed=%{public}d", allowed);
+    return nullptr;
+}
+
 // ---- Module Registration ----
 EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
@@ -385,8 +485,10 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"agentCall",       nullptr, AgentCall,       nullptr, nullptr, nullptr, napi_default, nullptr},
         {"testNetwork",     nullptr, TestNetwork,     nullptr, nullptr, nullptr, napi_default, nullptr},
         {"testFile",        nullptr, TestFile,        nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"search",          nullptr, Search,          nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"scanDir",         nullptr, ScanDir,         nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"search",               nullptr, Search,               nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"scanDir",              nullptr, ScanDir,              nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"setPermissionCallback", nullptr, SetPermissionCallback, nullptr, nullptr, nullptr, napi_default, nullptr},
+        {"resolvePermission",    nullptr, ResolvePermission,    nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
     return exports;

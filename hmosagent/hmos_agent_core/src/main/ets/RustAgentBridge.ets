@@ -1,8 +1,15 @@
 import nativeBridge from 'libnative_bridge.so';
 
+interface ChatMessageItem {
+  role: string;
+  content: string;
+}
+
 type StreamCallback = (data: string, eventType: number) => void;
 type IoCallback = (url: string, body: string) => string;
 type OfflineCallback = (isOffline: boolean) => void;
+type PermissionCallback = (toolName: string, reason: string) => void;
+type ToolCallCallback = (toolName: string, args: string) => void;
 
 export class RustAgentBridge {
   private static instance: RustAgentBridge | null = null;
@@ -14,6 +21,8 @@ export class RustAgentBridge {
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 3;
   private isOffline: boolean = false;
+  private permissionCallback: PermissionCallback | null = null;
+  private toolCallCallback: ToolCallCallback | null = null;
 
   static getInstance(): RustAgentBridge {
     if (RustAgentBridge.instance === null) {
@@ -182,6 +191,52 @@ export class RustAgentBridge {
     this.isOffline = false;
     this.reconnectAttempts = 0;
     if (this.offlineCallback) this.offlineCallback(false);
+  }
+
+  /**
+   * Register a callback for permission requests from the Rust core.
+   * The host should show a dialog and then call resolvePermission().
+   */
+  public onPermissionRequest(cb: PermissionCallback): void {
+    this.permissionCallback = cb;
+    try {
+      nativeBridge.setPermissionCallback((toolName: string, reason: string) => {
+        if (this.permissionCallback) {
+          this.permissionCallback(toolName, reason);
+        }
+      });
+    } catch (e) {
+      console.warn(`[Bridge] setPermissionCallback not available: ${e}`);
+    }
+  }
+
+  /**
+   * Called by the UI after user clicks Allow/Deny in the permission dialog.
+   * Unblocks the Rust permission gate (Condvar).
+   */
+  public resolvePermission(allowed: boolean): void {
+    try {
+      nativeBridge.resolvePermission(allowed);
+    } catch (e) {
+      console.error(`[Bridge] resolvePermission failed: ${e}`);
+    }
+  }
+
+  /**
+   * Register a callback for tool execution events (tool_start/tool_end).
+   * Used to show tool progress in the UI.
+   */
+  public onToolCall(cb: ToolCallCallback): void {
+    this.toolCallCallback = cb;
+  }
+
+  /**
+   * Start an agent loop with the given messages. Uses the new V2 agent_loop
+   * action that processes tool_use blocks automatically.
+   * eventType: 0 = text chunk, 1 = done, 2 = error, 3 = tool_start
+   */
+  public agentLoop(messages: ChatMessageItem[]): string {
+    return this.call('agent_loop', JSON.stringify({ messages: messages }));
   }
 
   private sleep(ms: number): Promise<void> {

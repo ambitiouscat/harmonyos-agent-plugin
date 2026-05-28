@@ -1,6 +1,7 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::Path;
+use std::sync::atomic::AtomicPtr;
 use std::sync::OnceLock;
 
 // --- Type aliases for function pointers in SystemCallbacks ---
@@ -11,6 +12,7 @@ pub type StreamPostFn = extern "C" fn(
     on_chunk: extern "C" fn(chunk_data: *const c_char, event_type: u8),
 ) -> bool;
 pub type FreeStrFn = extern "C" fn(ptr: *mut c_char);
+pub type PermissionFn = extern "C" fn(tool_name: *const c_char, reason: *const c_char);
 
 /// Host platform IO capabilities injected at init time.
 /// All fields are C-compatible raw function pointers.
@@ -27,6 +29,31 @@ pub struct SystemCallbacks {
 }
 
 pub static CALLBACKS: OnceLock<SystemCallbacks> = OnceLock::new();
+
+/// Permission callback: Rust calls this when a tool requires user approval.
+/// The host shows a UI dialog and calls back into Rust via `rust_agent_resolve_permission`.
+pub static PERMISSION_CB: AtomicPtr<std::ffi::c_void> = AtomicPtr::new(std::ptr::null_mut());
+
+/// Set the permission callback from the host.
+#[no_mangle]
+pub extern "C" fn rust_agent_set_permission_cb(cb: PermissionFn) {
+    PERMISSION_CB.store(cb as *mut std::ffi::c_void, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Called by the host after user clicks Allow/Deny in the permission dialog.
+#[no_mangle]
+pub extern "C" fn rust_agent_resolve_permission(allowed: bool) {
+    crate::agent::permission::resolve_permission(allowed);
+}
+
+pub fn load_permission_cb() -> Option<PermissionFn> {
+    let ptr = PERMISSION_CB.load(std::sync::atomic::Ordering::Relaxed);
+    if ptr.is_null() {
+        None
+    } else {
+        Some(unsafe { std::mem::transmute::<*mut std::ffi::c_void, PermissionFn>(ptr) })
+    }
+}
 
 /// Initialize the Rust core with host IO capabilities.
 /// Must be called exactly once before any other FFI call.

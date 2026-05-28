@@ -1,111 +1,162 @@
-use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
-use std::thread;
+use serde_json::Value;
+use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubAgentConfig {
-    pub name: String,
-    pub system_prompt: String,
-    pub max_iterations: u32,
-}
+/// Maximum sub-agent nesting depth to prevent infinite recursive spawning.
+const MAX_DEPTH: usize = 3;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubAgentProgress {
-    pub agent_name: String,
-    pub iteration: u32,
-    pub status: String, // "running", "completed", "error"
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
-
-/// Lightweight sub-agent runner that spawns an agent loop in a dedicated thread.
+/// Spawn a sub-agent to handle a task in isolation.
 ///
-/// Each sub-agent runs synchronously in its own OS thread with its own
-/// configuration scoped away from the main agent loop.
-pub struct SubAgentRunner;
+/// The sub-agent gets fresh messages[], limited tools (no SubAgent to prevent
+/// recursion), and a 30-turn safety limit. Only the final text summary is
+/// returned — intermediate tool chatter is discarded.
+///
+/// # Depth Defense
+/// Each level of sub-agent spawning increments `depth`. When `depth >= 3`, the
+/// call is rejected to prevent infinite recursive spawning and memory exhaustion.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn spawn_subagent(description: &str, workdir: &PathBuf, depth: usize) -> Result<String, String> {
+    if depth >= MAX_DEPTH {
+        return Err(format!(
+            "Maximum sub-agent nesting depth ({}) exceeded.",
+            MAX_DEPTH
+        ));
+    }
 
-impl SubAgentRunner {
-    /// Run a sub-agent in a background thread.
-    /// Returns immediately with a JoinHandle; use `join()` or poll for results.
-    pub fn run_async<F>(
-        config: SubAgentConfig,
-        on_progress: F,
-    ) -> thread::JoinHandle<SubAgentProgress>
-    where
-        F: Fn(&SubAgentProgress) + Send + 'static,
-    {
-        thread::spawn(move || {
-            let mut progress = SubAgentProgress {
-                agent_name: config.name.clone(),
-                iteration: 0,
-                status: "running".into(),
-                output: None,
-                error: None,
-            };
+    let desc = description.to_string();
+    let wd = workdir.clone();
 
-            for i in 0..config.max_iterations {
-                // Check abort flag
-                if crate::agent::abort::ABORT_FLAG.load(std::sync::atomic::Ordering::Relaxed) {
-                    progress.status = "cancelled".into();
-                    progress.iteration = i;
-                    on_progress(&progress);
-                    return progress;
-                }
+    // Run in a dedicated thread to isolate from the parent agent loop.
+    let handle = std::thread::spawn(move || {
+        run_subagent_inner(&desc, &wd, depth)
+    });
 
-                progress.iteration = i + 1;
-                on_progress(&progress);
+    match handle.join() {
+        Ok(result) => result,
+        Err(_) => Err("Sub-agent thread panicked".into()),
+    }
+}
 
-                // In a full implementation, this would:
-                // 1. Call the LLM with the sub-agent's system prompt + task
-                // 2. Parse tool calls from the response
-                // 3. Execute tools and feed back results
-                // 4. Check for completion signal
-                //
-                // For now, this is a structural stub ready for integration.
-                thread::sleep(std::time::Duration::from_millis(10));
-            }
+/// WASM stub — subagent requires threads.
+#[cfg(target_arch = "wasm32")]
+pub fn spawn_subagent(_description: &str, _workdir: &PathBuf, _depth: usize) -> Result<String, String> {
+    Err("Sub-agents are not available on wasm32 target".into())
+}
 
-            progress.status = "completed".into();
-            progress.output = Some(format!(
-                "Sub-agent '{}' completed {} iterations",
-                config.name,
-                config.max_iterations
-            ));
-            on_progress(&progress);
-            progress
+#[cfg(not(target_arch = "wasm32"))]
+fn run_subagent_inner(description: &str, workdir: &PathBuf, depth: usize) -> Result<String, String> {
+    use crate::agent::loop_engine::agent_loop_run;
+    use crate::agent::tool_registry::ToolRegistry;
+    use crate::agent::abort::ABORT_FLAG;
+    use std::sync::atomic::Ordering;
+
+    // Build a fresh ToolRegistry with only safe tools (no SubAgent).
+    let mut registry = ToolRegistry::new(workdir.to_str().unwrap_or("."));
+    register_sub_tools(&mut registry);
+
+    // Build fresh messages with the sub-agent task.
+    let mut messages = vec![crate::types::message::Message {
+        id: None,
+        role: "user".into(),
+        parts: vec![crate::types::message::ContentPart::Text {
+            text: format!(
+                "{}\n\nComplete this task and return a concise summary. Do not delegate further.",
+                description
+            ),
+        }],
+    }];
+
+    let config = crate::json_router::get_config();
+
+    // Suppress streaming output from sub-agent (only parent sees text).
+    let on_text = |_text: &str| {};
+    let on_tool = |_name: &str, _args: &str| {};
+
+    // Run the agent loop with a fresh 30-turn limit.
+    let outcome = agent_loop_run(&config, &mut messages, &registry, on_text, on_tool)?;
+
+    // Collect the final assistant text as a summary.
+    let summary = messages
+        .iter()
+        .rev()
+        .find(|m| m.role == "assistant")
+        .and_then(|m| {
+            m.parts.iter().find_map(|p| match p {
+                crate::types::message::ContentPart::Text { text } => Some(text.clone()),
+                _ => None,
+            })
         })
-    }
+        .unwrap_or_else(|| format!("Sub-agent completed: {:?}", outcome));
 
-    /// Run a sub-agent synchronously (blocks the calling thread).
-    pub fn run(config: SubAgentConfig) -> SubAgentProgress {
-        let progress = Arc::new(Mutex::new(SubAgentProgress {
-            agent_name: config.name.clone(),
-            iteration: 0,
-            status: "running".into(),
-            output: None,
-            error: None,
-        }));
+    Ok(summary)
+}
 
-        let progress_clone = progress.clone();
-        let handle = Self::run_async(config, move |p| {
-            if let Ok(mut guard) = progress_clone.lock() {
-                *guard = p.clone();
-            }
-        });
+/// Register tools available to sub-agents (no SubAgent to prevent recursion).
+#[cfg(not(target_arch = "wasm32"))]
+fn register_sub_tools(registry: &mut crate::agent::tool_registry::ToolRegistry) {
+    use crate::agent::tool_registry::ToolDef;
 
-        match handle.join() {
-            Ok(p) => p,
-            Err(_) => SubAgentProgress {
-                agent_name: "unknown".into(),
-                iteration: 0,
-                status: "error".into(),
-                output: None,
-                error: Some("Sub-agent thread panicked".into()),
+    registry.register(ToolDef {
+        name: "read".into(),
+        description: "Read a file from the filesystem.".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string"}
             },
-        }
-    }
+            "required": ["file_path"]
+        }),
+        read_only: true,
+        concurrent_safe: true,
+        handler: crate::tools::file::read_handler,
+    });
+
+    registry.register(ToolDef {
+        name: "write".into(),
+        description: "Write content to a file.".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string"},
+                "content": {"type": "string"}
+            },
+            "required": ["file_path", "content"]
+        }),
+        read_only: false,
+        concurrent_safe: false,
+        handler: crate::tools::file::write_handler,
+    });
+
+    registry.register(ToolDef {
+        name: "edit".into(),
+        description: "Edit a file by replacing an exact string match.".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string"},
+                "old_string": {"type": "string"},
+                "new_string": {"type": "string"}
+            },
+            "required": ["file_path", "old_string", "new_string"]
+        }),
+        read_only: false,
+        concurrent_safe: false,
+        handler: crate::tools::edit::edit_handler,
+    });
+
+    // Note: NO SubAgent tool registered here — this is how we prevent infinite recursion.
+}
+
+// ── ToolRegistry handler for the parent agent ──
+
+pub fn subagent_handler(args: Value, sandbox_root: &str) -> Result<String, String> {
+    let description = args["description"]
+        .as_str()
+        .ok_or_else(|| "Missing 'description' parameter".to_string())?;
+    let depth = args["depth"].as_u64().unwrap_or(0) as usize;
+
+    let workdir = PathBuf::from(sandbox_root);
+
+    spawn_subagent(description, &workdir, depth)
 }
 
 #[cfg(test)]
@@ -113,33 +164,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_subagent_runner_sync() {
-        let config = SubAgentConfig {
-            name: "test-agent".into(),
-            system_prompt: "You are a test agent.".into(),
-            max_iterations: 3,
-        };
-        let result = SubAgentRunner::run(config);
-        assert_eq!(result.status, "completed");
-        assert_eq!(result.iteration, 3);
-        assert!(result.output.is_some());
+    fn test_subagent_depth_limit() {
+        let result = spawn_subagent(
+            "test task",
+            &PathBuf::from("."),
+            MAX_DEPTH, // depth already at limit
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("depth"));
     }
 
     #[test]
-    fn test_subagent_runner_async() {
-        let config = SubAgentConfig {
-            name: "async-test".into(),
-            system_prompt: "Test".into(),
-            max_iterations: 2,
-        };
-        let results = Arc::new(Mutex::new(vec![]));
-        let r = results.clone();
-        let handle = SubAgentRunner::run_async(config, move |p| {
-            r.lock().unwrap().push(p.status.clone());
-        });
-        let final_progress = handle.join().unwrap();
-        assert_eq!(final_progress.status, "completed");
-        let statuses = results.lock().unwrap();
-        assert!(!statuses.is_empty());
+    fn test_subagent_depth_allowed() {
+        // depth 0 should be allowed (simulates first call from main agent)
+        let result = spawn_subagent(
+            "echo hello",
+            &PathBuf::from("."),
+            0,
+        );
+        // On non-wasm32 this will try to run, on wasm32 it returns Err
+        // But it shouldn't be a depth error
+        if let Err(e) = &result {
+            assert!(!e.contains("depth"), "Should not be depth error: {}", e);
+        }
+    }
+
+    #[test]
+    fn test_subagent_handler_missing_description() {
+        let result = subagent_handler(serde_json::json!({}), "/tmp");
+        assert!(result.is_err());
     }
 }

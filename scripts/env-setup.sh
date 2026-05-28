@@ -21,7 +21,8 @@ NDK_BIN="$NDK_BASE/llvm/bin"
 NDK_SYSROOT="$NDK_BASE/sysroot"
 
 export DEVECO_SDK_HOME
-export PATH="$NDK_BIN:$PATH"
+export JAVA_HOME="D:\\Program Files\\Huawei\\DevEco Studio\\jbr"
+export PATH="D:\\Program Files\\Huawei\\DevEco Studio\\jbr\\bin;$NDK_BIN;$PATH"
 
 echo "[env] PROJECT_ROOT=$PROJECT_ROOT"
 echo "[env] HMOS_ROOT=$HMOS_ROOT"

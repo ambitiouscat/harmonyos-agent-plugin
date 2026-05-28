@@ -1,9 +1,15 @@
 import { http } from '@kit.NetworkKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 
+export interface ModelLimit {
+  context: number;
+  output: number;
+}
+
 export interface OpenCodeModel {
   id: string;
   name?: string;
+  limit?: ModelLimit;
 }
 export interface OpenCodeProvider {
   id: string;
@@ -31,6 +37,15 @@ export class ProviderLoader {
 
   getSortedKeys(): string[] {
     return this.sortedKeys;
+  }
+
+  /** Get model context window size (in tokens) for display. */
+  getModelContext(providerId: string, modelId: string): number {
+    const p = this.providers[providerId];
+    if (!p || !p.models) return 0;
+    const m = p.models[modelId];
+    if (!m || !m.limit) return 0;
+    return m.limit.context || 0;
   }
 
   /**

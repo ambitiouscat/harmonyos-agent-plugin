@@ -19,6 +19,7 @@ pub enum AgentRequest {
         content: String,
     },
     ChatStream { messages: Vec<ChatMessage> },
+    AgentLoop { messages: Vec<ChatMessage> },
     RunStep { messages: Vec<Message> },
     LoadSession { session_id: String },
     CreateSession { title: String },
@@ -72,7 +73,7 @@ pub enum ContentPart {
     ToolCall {
         id: String,
         name: String,
-        arguments: String,
+        arguments: serde_json::Value,
     },
 
     #[serde(rename = "tool_result")]
@@ -110,7 +111,7 @@ mod tests {
         let cp = ContentPart::ToolCall {
             id: "tc1".into(),
             name: "search".into(),
-            arguments: r#"{"query":"test"}"#.into(),
+            arguments: serde_json::json!({"query": "test"}),
         };
         let json = serde_json::to_string(&cp).unwrap();
         assert!(json.contains(r#""type":"tool_call""#));

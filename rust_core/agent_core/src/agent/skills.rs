@@ -2,6 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{LazyLock, RwLock};
 
+/// Lightweight skill metadata for system prompt catalog injection (~100 tokens/skill).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillMeta {
+    pub name: String,
+    pub description: String,
+    pub category: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillParam {
     pub name: String,
@@ -146,6 +154,50 @@ impl SkillsRegistry {
             .filter(|s| s.name.to_lowercase().starts_with(&lower))
             .cloned()
             .collect()
+    }
+
+    /// Return lightweight catalog for system prompt (~tokens efficient).
+    pub fn get_catalog(&self) -> Vec<SkillMeta> {
+        self.skills
+            .values()
+            .map(|s| SkillMeta {
+                name: s.name.clone(),
+                description: s.description.clone(),
+                category: s.category.clone(),
+            })
+            .collect()
+    }
+
+    /// Load full skill content by name (for the load_skill tool).
+    /// Returns a detailed description with parameters for context injection.
+    pub fn load_skill(&self, name: &str) -> Option<String> {
+        self.skills.get(name).map(|s| {
+            let params_str: Vec<String> = s
+                .params
+                .iter()
+                .map(|p| {
+                    format!(
+                        "  - {} ({}, {}): {}",
+                        p.name,
+                        p.param_type,
+                        if p.required { "required" } else { "optional" },
+                        p.description
+                    )
+                })
+                .collect();
+
+            format!(
+                "## {}\n\n**Category:** {}\n\n{}\n\n### Parameters\n\n{}",
+                s.name,
+                s.category,
+                s.description,
+                if params_str.is_empty() {
+                    "  (no parameters)".into()
+                } else {
+                    params_str.join("\n")
+                }
+            )
+        })
     }
 
     pub fn fuzzy_match(&self, query: &str) -> Vec<SkillDef> {

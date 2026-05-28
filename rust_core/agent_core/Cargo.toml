@@ -17,6 +17,8 @@ sha2 = "0.10"
 ignore = "0.4"
 grep-regex = "0.1"
 grep-searcher = "0.1"
+glob = "0.3"
+regex = "1"
 # WASM target dependencies
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }

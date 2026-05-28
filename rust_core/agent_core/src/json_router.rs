@@ -254,12 +254,164 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                 error: None,
             }
         }
+        "list_tasks" => {
+            let store = crate::agent::task_state::global_task_store();
+            let tasks = store.lock().unwrap().list_tasks();
+            let json = serde_json::to_string(&tasks).unwrap_or_else(|_| "[]".into());
+            AgentResponse {
+                status: "ok".into(),
+                message: Some(json),
+                error: None,
+            }
+        }
         "reset_abort" => {
             ABORT_FLAG.store(false, Ordering::Relaxed);
             AgentResponse {
                 status: "ok".into(),
                 message: Some("Abort flag reset".into()),
                 error: None,
+            }
+        }
+        "agent_loop" => {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                // Parse messages directly (bypass AgentRequest untagged ordering issue)
+                let args: serde_json::Value = serde_json::from_str(args_json).unwrap_or_default();
+                if let Some(msgs_json) = args["messages"].as_array() {
+                    let messages: Vec<crate::types::message::ChatMessage> = msgs_json
+                        .iter()
+                        .filter_map(|m| {
+                            Some(crate::types::message::ChatMessage {
+                                role: m["role"].as_str()?.to_string(),
+                                content: m["content"].as_str()?.to_string(),
+                            })
+                        })
+                        .collect();
+
+                    if !messages.is_empty() {
+                        let config = AGENT_CONFIG.read().unwrap().clone();
+                        let sandbox_root = config["sandbox_root"]
+                            .as_str()
+                            .unwrap_or(".")
+                            .to_string();
+                        let stream_cb = {
+                            let guard = STREAM_CB.lock().unwrap();
+                            *guard
+                        };
+
+                        if stream_cb.is_none() {
+                            return serde_json::to_string(&AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some("Stream callback not registered. Did you call init() first?".into()),
+                            }).unwrap_or_default();
+                        }
+
+                        // Init tool registry if not already done
+                        if crate::agent::tool_registry::with_registry(|_| ()).is_none() {
+                            crate::agent::tool_registry::init_global_registry(&sandbox_root);
+                        }
+
+                        thread::spawn(move || {
+                            // Build messages with system prompt
+                            let system_prompt = crate::agent::prompt_assembler::assemble_system_prompt(&sandbox_root);
+                            let mut internal_messages: Vec<crate::types::message::Message> = vec![
+                                crate::types::message::Message {
+                                    id: None,
+                                    role: "system".into(),
+                                    parts: vec![crate::types::message::ContentPart::Text {
+                                        text: system_prompt,
+                                    }],
+                                },
+                            ];
+                            internal_messages.extend(
+                                messages.into_iter().map(|cm| crate::types::message::Message {
+                                    id: None,
+                                    role: cm.role,
+                                    parts: vec![crate::types::message::ContentPart::Text {
+                                        text: cm.content,
+                                    }],
+                                })
+                            );
+
+                            let on_text = |text: &str| {
+                                if let Some(cb) = stream_cb {
+                                    let json = serde_json::json!({"type":"text","text":text});
+                                    if let Ok(s) = std::ffi::CString::new(json.to_string()) {
+                                        cb(s.as_ptr(), 0);
+                                    }
+                                }
+                            };
+
+                            let on_tool = |name: &str, args: &str| {
+                                if let Some(cb) = stream_cb {
+                                    let json = serde_json::json!({
+                                        "type":"tool_start",
+                                        "name": name,
+                                        "args": args,
+                                    });
+                                    if let Ok(s) = std::ffi::CString::new(json.to_string()) {
+                                        cb(s.as_ptr(), 3);
+                                    }
+                                }
+                            };
+
+                            let result = crate::agent::tool_registry::with_registry(|r| {
+                                let mut msgs = internal_messages;
+                                crate::agent::loop_engine::agent_loop_run(
+                                    &config,
+                                    &mut msgs,
+                                    r,
+                                    on_text,
+                                    on_tool,
+                                )
+                            });
+
+                            if let Some(cb) = stream_cb {
+                                match result {
+                                    Some(Ok(outcome)) => {
+                                        let done_json = serde_json::json!({
+                                            "type":"done",
+                                            "outcome": format!("{:?}", outcome)
+                                        });
+                                        if let Ok(s) = std::ffi::CString::new(done_json.to_string()) {
+                                            cb(s.as_ptr(), 1);
+                                        }
+                                    }
+                                    Some(Err(e)) => {
+                                        let err_json = serde_json::json!({
+                                            "type":"error",
+                                            "text": format!("Agent loop error: {}", e)
+                                        });
+                                        if let Ok(s) = std::ffi::CString::new(err_json.to_string()) {
+                                            cb(s.as_ptr(), 2);
+                                        }
+                                    }
+                                    None => {
+                                        let err_json = serde_json::json!({
+                                            "type":"error",
+                                            "text": "Tool registry not initialized"
+                                        });
+                                        if let Ok(s) = std::ffi::CString::new(err_json.to_string()) {
+                                            cb(s.as_ptr(), 2);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+
+                        return serde_json::to_string(&AgentResponse {
+                            status: "streaming".into(),
+                            message: Some("Agent loop started".into()),
+                            error: None,
+                        }).unwrap_or_default();
+                    }
+                }
+            }
+            AgentResponse {
+                status: "error".into(),
+                message: None,
+                error: Some("agent_loop requires messages array".into()),
             }
         }
         "vfs_write_file" => {

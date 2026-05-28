@@ -18,6 +18,7 @@ typedef char* (*PostFn)(const char* url, const char* body);
 typedef bool (*StreamPostFn)(const char* url, const char* body,
                               void (*on_chunk)(const char* chunk_data, uint8_t event_type));
 typedef void (*FreeStrFn)(char* ptr);
+typedef void (*PermissionFn)(const char* tool_name, const char* reason);
 
 // --- SystemCallbacks: host IO capabilities injected at init ---
 typedef struct {
@@ -41,6 +42,10 @@ bool test_file(const char* dir);
 char* rust_agent_search(const char* dir_path, const char* pattern);
 // Returns JSON status. Caller must free via rust_agent_free_str.
 char* rust_agent_scan_dir(const char* dir_path);
+
+// --- Phase 7: Permission callbacks ---
+void rust_agent_set_permission_cb(PermissionFn cb);
+void rust_agent_resolve_permission(bool allowed);
 
 #ifdef __cplusplus
 }

@@ -86,6 +86,7 @@ export struct InputBar {
       // Input row
       Row() {
         TextInput({ text: $$this.inputText, placeholder: 'Ask anything... (/ for commands)' })
+          .id('chat_input_field')
           .layoutWeight(1)
           .height(40)
           .fontSize(14)
@@ -95,6 +96,7 @@ export struct InputBar {
           .padding({ left: 16, right: 16 })
           .onChange((value: string) => this.onTextChange(value))
           .onSubmit(() => {
+            if (this.isStreaming) return; // guard: don't send while streaming
             if (this.inputText.trim()) {
               this.onSend(this.inputText.trim());
               this.inputText = '';
