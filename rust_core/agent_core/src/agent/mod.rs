@@ -1,9 +1,12 @@
 pub mod abort;
+pub mod agent_pool;
 pub mod compaction;
 pub mod hooks;
+pub mod mcp;
 pub mod memory;
 pub mod permission;
 pub mod platform;
+pub mod plugins;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod platform_harmonyos;
 #[cfg(target_arch = "wasm32")]
