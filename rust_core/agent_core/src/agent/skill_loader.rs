@@ -100,10 +100,14 @@ impl FileSystemSkillLoader {
             }
         }
 
-        let name = fm
+        let mut name = fm
             .get("name")
             .cloned()
             .unwrap_or_else(|| dir.file_name().unwrap_or_default().to_string_lossy().to_string());
+        // Normalize: ensure skill names start with "/"
+        if !name.starts_with('/') {
+            name = format!("/{}", name);
+        }
         let description = fm
             .get("description")
             .cloned()
@@ -145,38 +149,48 @@ impl FileSystemSkillLoader {
     }
 }
 
-/// Write bundled skills to a directory, then scan and register into the global SkillsRegistry.
-pub fn extract_embedded_skills(skills_dir: &Path) -> Result<usize, String> {
-    std::fs::create_dir_all(skills_dir)
-        .map_err(|e| format!("Failed to create skills dir: {}", e))?;
-
-    // Bundled skill definitions (will switch to include_str! once cross-compile rustc crash is resolved)
-    let embedded: &[(&str, &str)] = &[
-        ("summarize", BUNDLED_SKILL_SUMMARIZE),
-        ("frontend-design", BUNDLED_SKILL_FRONTEND_DESIGN),
-        ("find-skills", BUNDLED_SKILL_FIND_SKILLS),
-    ];
-
-    let mut count = 0;
-    for (name, content) in embedded {
-        let skill_dir = skills_dir.join(name);
-        std::fs::create_dir_all(&skill_dir).ok();
-        let skill_file = skill_dir.join("SKILL.md");
-        if std::fs::write(&skill_file, content).is_ok() {
-            count += 1;
+/// Register bundled skills directly into the global SkillsRegistry.
+/// Bypasses filesystem to avoid platform-specific storage issues.
+pub fn extract_embedded_skills(_skills_dir: &Path) -> Result<usize, String> {
+    // Write files to disk for persistence (best-effort)
+    if let Ok(()) = std::fs::create_dir_all(_skills_dir) {
+        let embedded: &[(&str, &str)] = &[
+            ("/summarize", BUNDLED_SKILL_SUMMARIZE),
+            ("/frontend-design", BUNDLED_SKILL_FRONTEND_DESIGN),
+            ("/find-skills", BUNDLED_SKILL_FIND_SKILLS),
+        ];
+        for (name, content) in embedded {
+            let skill_dir = _skills_dir.join(name.trim_start_matches('/'));
+            std::fs::create_dir_all(&skill_dir).ok();
+            std::fs::write(skill_dir.join("SKILL.md"), content).ok();
         }
     }
 
-    // Scan and register
-    let skills = FileSystemSkillLoader::scan(skills_dir)?;
-    if !skills.is_empty() {
-        let mut registry = SKILLS.write().unwrap();
-        for skill in skills {
-            registry.register_dynamic(skill);
-        }
-    }
+    // Register directly into SkillsRegistry (does not depend on filesystem)
+    let mut registry = SKILLS.write().unwrap();
+    registry.register_dynamic(Box::new(FileSkill {
+        name: "/summarize".into(),
+        description: "Summarize or extract text/transcripts from URLs, podcasts, and local files".into(),
+        category: SkillCategory::Utility,
+        params: vec![],
+        body: BUNDLED_SKILL_SUMMARIZE.into(),
+    }));
+    registry.register_dynamic(Box::new(FileSkill {
+        name: "/frontend-design".into(),
+        description: "Create distinctive, production-grade frontend interfaces with high design quality".into(),
+        category: SkillCategory::Implementation,
+        params: vec![],
+        body: BUNDLED_SKILL_FRONTEND_DESIGN.into(),
+    }));
+    registry.register_dynamic(Box::new(FileSkill {
+        name: "/find-skills".into(),
+        description: "Find and discover available skills for extending agent capabilities".into(),
+        category: SkillCategory::Utility,
+        params: vec![],
+        body: BUNDLED_SKILL_FIND_SKILLS.into(),
+    }));
 
-    Ok(count)
+    Ok(3)
 }
 
 // Bundled skill contents (switch to include_str! after rustc 1.95 ICE is resolved)
@@ -300,7 +314,7 @@ Assists with common Git operations like commit, push, branch management.
 
         let skills = FileSystemSkillLoader::scan(&dir).unwrap();
         assert_eq!(skills.len(), 1);
-        assert_eq!(skills[0].name(), "git-helper");
+        assert_eq!(skills[0].name(), "/git-helper");
         assert_eq!(skills[0].category(), SkillCategory::Utility);
         assert_eq!(skills[0].params().len(), 2);
         assert!(skills[0]
