@@ -1,4 +1,4 @@
-use crate::agent::skills::{Skill, SkillCategory, SkillContext, SkillParam};
+use crate::agent::skills::{Skill, SkillCategory, SkillContext, SkillParam, SKILLS};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -144,6 +144,110 @@ impl FileSystemSkillLoader {
         })
     }
 }
+
+/// Write bundled skills to a directory, then scan and register into the global SkillsRegistry.
+pub fn extract_embedded_skills(skills_dir: &Path) -> Result<usize, String> {
+    std::fs::create_dir_all(skills_dir)
+        .map_err(|e| format!("Failed to create skills dir: {}", e))?;
+
+    // Bundled skill definitions (will switch to include_str! once cross-compile rustc crash is resolved)
+    let embedded: &[(&str, &str)] = &[
+        ("summarize", BUNDLED_SKILL_SUMMARIZE),
+        ("frontend-design", BUNDLED_SKILL_FRONTEND_DESIGN),
+        ("find-skills", BUNDLED_SKILL_FIND_SKILLS),
+    ];
+
+    let mut count = 0;
+    for (name, content) in embedded {
+        let skill_dir = skills_dir.join(name);
+        std::fs::create_dir_all(&skill_dir).ok();
+        let skill_file = skill_dir.join("SKILL.md");
+        if std::fs::write(&skill_file, content).is_ok() {
+            count += 1;
+        }
+    }
+
+    // Scan and register
+    let skills = FileSystemSkillLoader::scan(skills_dir)?;
+    if !skills.is_empty() {
+        let mut registry = SKILLS.write().unwrap();
+        for skill in skills {
+            registry.register_dynamic(skill);
+        }
+    }
+
+    Ok(count)
+}
+
+// Bundled skill contents (switch to include_str! after rustc 1.95 ICE is resolved)
+const BUNDLED_SKILL_SUMMARIZE: &str = r#"---
+name: summarize
+description: Summarize or extract text/transcripts from URLs, podcasts, and local files
+category: utility
+---
+
+## summarize
+
+Extract and summarize text from various sources including URLs, podcast transcripts, and local files.
+
+### Usage
+
+Provide a URL or file path. The skill will:
+1. Fetch content (web page, transcript, or file)
+2. Extract the main text
+3. Return a concise summary
+
+### Parameters
+
+- `source` (string, required): URL or file path to summarize
+- `format` (string, optional): Output format — "bullet" (default), "paragraph", or "detailed"
+"#;
+
+const BUNDLED_SKILL_FRONTEND_DESIGN: &str = r#"---
+name: frontend-design
+description: Create distinctive, production-grade frontend interfaces with high design quality
+category: implementation
+---
+
+## frontend-design
+
+Create distinctive, production-grade frontend interfaces that avoid generic AI aesthetics.
+
+### Usage
+
+Describe the UI you want to build. The skill will generate:
+1. Creative, polished code with attention to visual details
+2. Unique design choices (not generic templates)
+3. Production-ready HTML/CSS/JS
+
+### Parameters
+
+- `description` (string, required): What UI component or page to build
+- `framework` (string, optional): Target framework — "html" (default), "react", "vue"
+"#;
+
+const BUNDLED_SKILL_FIND_SKILLS: &str = r#"---
+name: find-skills
+description: Find and discover available skills for extending agent capabilities
+category: utility
+---
+
+## find-skills
+
+Search for and discover skills that can extend the agent's capabilities.
+
+### Usage
+
+Query for skills by keyword or category. The skill will:
+1. Search available skill registries
+2. Return matching skills with descriptions
+3. Help you install or load desired skills
+
+### Parameters
+
+- `query` (string, required): What kind of skill you are looking for
+- `category` (string, optional): Filter by category (process, implementation, platform, review, utility, documentation)
+"#;
 
 #[cfg(test)]
 mod tests {

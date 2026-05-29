@@ -40,9 +40,14 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                     crate::agent::session::init_session_manager(files_dir);
                     // Initialize memory store alongside session manager
                     crate::agent::memory::init_memory_store(&format!("{}/.memory", files_dir));
+                    // Extract embedded skills to filesystem
+                    let skills_dir = format!("{}/skills", files_dir);
+                    let _ = crate::agent::skill_loader::extract_embedded_skills(
+                        std::path::Path::new(&skills_dir),
+                    );
                     AgentResponse {
                         status: "ok".into(),
-                        message: Some("Session and memory store initialized".into()),
+                        message: Some("Session, memory store, and skills initialized".into()),
                         error: None,
                     }
                 }
