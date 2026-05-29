@@ -99,14 +99,9 @@ impl AgentSpawner for ThreadPoolSpawner {
             ));
         }
 
-        let id = format!(
-            "agent-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        );
+        use std::sync::atomic::AtomicU64;
+        static AGENT_COUNTER: AtomicU64 = AtomicU64::new(0);
+        let id = format!("agent-{}", AGENT_COUNTER.fetch_add(1, Ordering::Relaxed));
         let status = Arc::new(std::sync::Mutex::new(AgentStatus::Running));
         let cancelled = Arc::new(AtomicBool::new(false));
         let (tx, rx) = mpsc::channel();

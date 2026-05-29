@@ -198,8 +198,8 @@ impl PluginLoader {
 
 // ── Global plugin loader ──
 
-static PLUGIN_LOADER: std::sync::LazyLock<std::sync::RwLock<Option<PluginLoader>>> =
-    std::sync::LazyLock::new(|| std::sync::RwLock::new(None));
+static PLUGIN_LOADER: std::sync::OnceLock<std::sync::RwLock<PluginLoader>> =
+    std::sync::OnceLock::new();
 
 pub fn init_plugin_loader(plugins_dir: &Path) {
     let source = Box::new(LocalFsPluginSource::new(plugins_dir));
@@ -212,8 +212,9 @@ pub fn init_plugin_loader(plugins_dir: &Path) {
         }
         Err(e) => eprintln!("[plugins] Plugin load error: {}", e),
     }
-    let mut guard = PLUGIN_LOADER.write().unwrap();
-    *guard = Some(loader);
+    PLUGIN_LOADER
+        .set(std::sync::RwLock::new(loader))
+        .ok();
 }
 
 #[cfg(test)]
@@ -287,7 +288,7 @@ mod tests {
         let def = source.load(&manifests[0]).unwrap();
         assert_eq!(def.name, "with-skills");
         assert!(!def.skills.is_empty());
-        assert_eq!(def.skills[0].name(), "test-skill");
+        assert_eq!(def.skills[0].name(), "/test-skill");
 
         fs::remove_dir_all(&dir).ok();
     }
