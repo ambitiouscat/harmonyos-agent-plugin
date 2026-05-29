@@ -18,7 +18,9 @@ export struct InputBar {
   @Local showPalette: boolean = false;
   @Local selectedIdx: number = 0;
   private scroller: Scroller = new Scroller();
-  private lastKeyTime: number = 0;
+  private longPressActive: boolean = false;
+  private longPressTimer: number = 0;
+  private lastRepeatTime: number = 0;
 
   @Monitor('selectedIdx')
   onSelectedIdxChange(): void {
@@ -103,25 +105,53 @@ export struct InputBar {
 
             const isUp = event.type === KeyType.Up;
             const isDown = event.type === KeyType.Down;
-            const now = Date.now();
-            const elapsed = now - this.lastKeyTime;
+            const isArrow = event.keyCode === KeyCode.KEYCODE_DPAD_DOWN ||
+                            event.keyCode === KeyCode.KEYCODE_DPAD_UP;
 
-            // Single tap: move on key release (one move per complete press)
-            // Long hold: move on key down with 200ms throttle for auto-repeat
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
-              if (isUp || (isDown && elapsed > 200)) {
-                this.selectedIdx = (this.selectedIdx + 1) % filtered.length;
-                this.lastKeyTime = now;
+            if (isArrow) {
+              if (isDown) {
+                // Start timer on first key-down
+                if (this.longPressTimer === 0) {
+                  this.longPressTimer = Date.now();
+                }
+                const now = Date.now();
+                const holdDuration = now - this.longPressTimer;
+
+                // Switch to long-press mode after 400ms hold
+                if (!this.longPressActive && holdDuration > 400) {
+                  this.longPressActive = true;
+                  this.lastRepeatTime = now;
+                }
+
+                if (!this.longPressActive) {
+                  // Short press (< 400ms hold): only first key-down moves
+                  if (holdDuration < 50) {
+                    if (event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+                      this.selectedIdx = (this.selectedIdx + 1) % filtered.length;
+                    } else {
+                      this.selectedIdx = (this.selectedIdx - 1 + filtered.length) % filtered.length;
+                    }
+                  }
+                } else {
+                  // Long press: rapid repeat every 80ms
+                  if (now - this.lastRepeatTime > 80) {
+                    if (event.keyCode === KeyCode.KEYCODE_DPAD_DOWN) {
+                      this.selectedIdx = (this.selectedIdx + 1) % filtered.length;
+                    } else {
+                      this.selectedIdx = (this.selectedIdx - 1 + filtered.length) % filtered.length;
+                    }
+                    this.lastRepeatTime = now;
+                  }
+                }
+              } else if (isUp) {
+                // Reset on release
+                this.longPressActive = false;
+                this.longPressTimer = 0;
+                this.lastRepeatTime = 0;
               }
               return true;
             }
-            if (event.keyCode === KeyCode.KEYCODE_DPAD_UP) {
-              if (isUp || (isDown && elapsed > 200)) {
-                this.selectedIdx = (this.selectedIdx - 1 + filtered.length) % filtered.length;
-                this.lastKeyTime = now;
-              }
-              return true;
-            }
+
             if (event.keyCode === KeyCode.KEYCODE_TAB) {
               if (isUp) {
                 this.handleSelectCommand(filtered[this.selectedIdx].name);
