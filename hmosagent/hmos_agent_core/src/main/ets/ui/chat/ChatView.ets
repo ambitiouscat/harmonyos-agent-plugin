@@ -144,6 +144,41 @@ export struct ChatView {
     } catch (_e) { /* use defaults */ }
   }
 
+  private readRawFile(name: string): string {
+    try {
+      const rm = getContext(this).resourceManager;
+      const raw = rm.getRawFileContentSync(name);
+      let text = '';
+      for (let i = 0; i < raw.length; i++) {
+        text += String.fromCharCode(raw[i]);
+      }
+      return text;
+    } catch (_e) {
+      return '';
+    }
+  }
+
+  private async fetchProviders(filesDir: string): Promise<void> {
+    try {
+      const req = http.createHttp();
+      const resp = req.request('https://models.dev/api.json', {
+        method: http.RequestMethod.GET,
+        connectTimeout: 10000,
+        readTimeout: 15000
+      });
+      resp.then((res: http.HttpResponse) => {
+        if (res.responseCode === 200 && typeof res.result === 'string') {
+          this.bridge.updateProviders(filesDir, res.result as string);
+          console.info('[ChatView] Providers updated from remote');
+        }
+      }).catch((_e: Error) => {
+        console.info('[ChatView] Providers fetch failed, using bundled defaults');
+      });
+    } catch (_e) {
+      console.info('[ChatView] Providers fetch failed, using bundled defaults');
+    }
+  }
+
   async initBridge(): Promise<void> {
     if (this.bridgeReady) {
       return;
@@ -189,8 +224,22 @@ export struct ChatView {
         this.bridgeReady = true;
         // Init session & skills — don't need API key
         const filesDir = getContext(this).filesDir;
-        this.bridge.initSession(filesDir);
+        // Read rawfile defaults to seed .unify/ on first launch
+        const defaults: Record<string, string> = {};
+        try {
+          defaults['config'] = JSON.stringify({
+            message_page_size: 30,
+            phrase_interval_min_ms: 5000,
+            phrase_interval_max_ms: 10000
+          });
+          defaults['themes'] = this.readRawFile('themes.json');
+          defaults['providers'] = this.readRawFile('providers.json');
+        } catch (_e) { /* rawfile read failed, use empty defaults */ }
+        this.bridge.initSession(filesDir, defaults);
         this.loadSkills();
+
+        // Fetch latest providers from remote
+        this.fetchProviders(filesDir);
 
         // Set up permission callback
         this.bridge.onPermissionRequest((toolName: string, reason: string) => {
@@ -270,6 +319,14 @@ export struct ChatView {
     this.showSettings = false;
     await this.initBridge();
     await this.applyConfig();
+    // Reload imports if user imported skills/plugins
+    const needReload = AppStorage.get('import_reload_needed') as boolean;
+    if (needReload) {
+      const filesDir = getContext(this).filesDir;
+      this.bridge.reloadImports(filesDir);
+      this.loadSkills();
+      AppStorage.setOrCreate('import_reload_needed', false);
+    }
   }
 
   applyDelta(deltaJson: string): void {

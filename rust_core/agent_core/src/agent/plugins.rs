@@ -142,7 +142,7 @@ impl PluginLoader {
         for manifest in &manifests {
             match self.source.load(manifest) {
                 Ok(def) => {
-                    self.register_plugin(&def);
+                    self.register_plugin(def);
                     self.loaded_manifests.push(manifest.clone());
                     count += 1;
                 }
@@ -173,15 +173,12 @@ impl PluginLoader {
         self.load_all()
     }
 
-    fn register_plugin(&self, def: &PluginDef) {
-        // Register skills
+    fn register_plugin(&self, def: PluginDef) {
+        // Register skills into the global SkillsRegistry via the dynamic trait-object path.
         if !def.skills.is_empty() {
             let mut registry = SKILLS.write().unwrap();
-            for _skill in &def.skills {
-                // Skills are registered via their name; dynamic skills
-                // must be cloned/transferred. V1 limitation: skill trait
-                // objects can't be cloned across registrations.
-                // Skills from file loading are re-loaded, not cloned.
+            for skill in def.skills {
+                registry.register_dynamic(skill);
             }
         }
 
@@ -320,6 +317,14 @@ mod tests {
 
         assert_eq!(loader.load_all().unwrap(), 1);
         assert_eq!(loader.loaded_count(), 1);
+
+        // Verify plugin skills are registered in global SkillsRegistry
+        {
+            let registry = crate::agent::skills::SKILLS.read().unwrap();
+            let skill = registry.get_dynamic("/test-skill");
+            assert!(skill.is_some(), "Plugin skill should be registered after load_all");
+            assert_eq!(skill.unwrap().description(), "A test skill");
+        }
 
         loader.unload_all();
         assert_eq!(loader.loaded_count(), 0);

@@ -1,4 +1,5 @@
 import { preferences } from '@kit.ArkData';
+import { fileIo, picker } from '@kit.CoreFileKit';
 import { getProviderLoader, OpenCodeModel, OpenCodeProvider } from '../provider/ProviderLoader';
 import { getPhraseLoader, CategoryInfo } from '../ui/common/PhraseLoader';
 
@@ -16,6 +17,13 @@ export struct SettingsPage {
   @Local thinkingPhraseStyle: string = 'claude-original';
   @Local phraseCategories: CategoryInfo[] = [];
   @Param onSettingsSaved: () => void = () => {};
+  @Local importStatus: string = '';
+  @Local importDialogVisible: boolean = false;
+  @Local importUri: string = '';
+  @Local workspaceMode: string = '';
+  @Local skillName: string = '';
+  @Local skillDesc: string = '';
+  @Local skillBody: string = '';
 
   private prefs: preferences.Preferences | null = null;
   private loader = getProviderLoader();
@@ -126,6 +134,137 @@ export struct SettingsPage {
     }
   }
 
+  async pickAndImportFolder(): Promise<void> {
+    if (this.skillName && this.skillBody) {
+      // Quick create via text input
+      await this.createSkillFromText();
+      return;
+    }
+    // Pick a file from device storage
+    try {
+      const options = new picker.DocumentSelectOptions();
+      options.maxSelectNumber = 1;
+      const docPicker = new picker.DocumentViewPicker(getContext(this));
+      const uris = await docPicker.select(options);
+      if (uris && uris.length > 0) {
+        const uri = uris[0];
+        const lastSlash = uri.lastIndexOf('/');
+        const parentUri = lastSlash > 0 ? uri.substring(0, lastSlash) : uri;
+        const folderName = parentUri.substring(parentUri.lastIndexOf('/') + 1);
+        await this.importFromUri(parentUri, folderName);
+      }
+    } catch (e) {
+      console.error('[Settings] pickAndImport failed: ' + JSON.stringify(e));
+      this.importStatus = 'Import failed: ' + (typeof e === 'object' ? JSON.stringify(e) : '');
+    }
+  }
+
+  async importFromUri(srcUri: string, folderName: string): Promise<void> {
+    this.importStatus = 'Scanning...';
+    try {
+      const files = fileIo.listFileSync(srcUri);
+      let hasSkillMd = false;
+      let hasPluginJson = false;
+      for (const f of files) {
+        if (f.endsWith('SKILL.md') || f === 'SKILL.md') {
+          hasSkillMd = true;
+        }
+        if (f.endsWith('plugin.json') || f === 'plugin.json') {
+          hasPluginJson = true;
+        }
+      }
+      if (!hasSkillMd && !hasPluginJson) {
+        this.importStatus = 'Failed: no SKILL.md or plugin.json found';
+        return;
+      }
+
+      const filesDir = getContext(this).filesDir;
+      const destBase = hasPluginJson ?
+        filesDir + '/.unify/plugins/' + folderName :
+        filesDir + '/.unify/skills/' + folderName;
+      fileIo.mkdirSync(destBase, true);
+      this.copyDirRecursive(srcUri, destBase);
+
+      this.importStatus = `Imported ${hasPluginJson ? 'plugin' : 'skill'}: ${folderName}`;
+      AppStorage.setOrCreate('import_reload_needed', true);
+    } catch (e) {
+      console.error('[Settings] importFromUri failed: ' + JSON.stringify(e));
+      this.importStatus = 'Import failed: ' + (typeof e === 'object' ? JSON.stringify(e) : 'unknown');
+    }
+  }
+
+  async createSkillFromText(): Promise<void> {
+    try {
+      const filesDir = getContext(this).filesDir;
+      const destDir = filesDir + '/.unify/skills/' + this.skillName;
+      fileIo.mkdirSync(destDir, true);
+      const frontmatter = '---\nname: ' + this.skillName +
+        '\ndescription: ' + (this.skillDesc || this.skillName) +
+        '\ncategory: utility\n---\n\n' + this.skillBody;
+      const file = fileIo.openSync(destDir + '/SKILL.md',
+        fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+      fileIo.writeSync(file.fd, frontmatter);
+      fileIo.closeSync(file);
+      this.importStatus = 'Created skill: ' + this.skillName;
+      this.skillName = '';
+      this.skillDesc = '';
+      this.skillBody = '';
+      AppStorage.setOrCreate('import_reload_needed', true);
+    } catch (e) {
+      console.error('[Settings] createSkill failed: ' + JSON.stringify(e));
+      this.importStatus = 'Failed to create skill';
+    }
+  }
+
+  copyDirRecursive(srcDir: string, destDir: string): void {
+    try {
+      fileIo.mkdirSync(destDir, true);
+      const files = fileIo.listFileSync(srcDir);
+      for (const f of files) {
+        const srcPath = srcDir + '/' + f;
+        const destPath = destDir + '/' + f;
+        try {
+          const stat = fileIo.statSync(srcPath);
+          if (stat.isDirectory()) {
+            this.copyDirRecursive(srcPath, destPath);
+          } else {
+            const srcFile = fileIo.openSync(srcPath, fileIo.OpenMode.READ_ONLY);
+            const buf = new ArrayBuffer(stat.size);
+            fileIo.readSync(srcFile.fd, buf);
+            fileIo.closeSync(srcFile);
+            const dstFile = fileIo.openSync(destPath,
+              fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC);
+            fileIo.writeSync(dstFile.fd, buf);
+            fileIo.closeSync(dstFile);
+          }
+        } catch (_e) { /* skip individual file errors */ }
+      }
+    } catch (_e) { /* skip directory errors */ }
+  }
+
+  async pickWorkspaceDir(): Promise<void> {
+    try {
+      const options = new picker.DocumentSelectOptions();
+      options.maxSelectNumber = 1;
+      // No authMode — let user navigate to any folder, pick any file inside it
+      const docPicker = new picker.DocumentViewPicker(getContext(this));
+      const uris = await docPicker.select(options);
+      if (uris && uris.length > 0) {
+        const uri = uris[0];
+        const lastSlash = uri.lastIndexOf('/');
+        const parentUri = lastSlash > 0 ? uri.substring(0, lastSlash) : uri;
+        const prefs = await preferences.getPreferences(getContext(this), 'hmos_agent_config');
+        await prefs.put('workspace_uri', parentUri);
+        await prefs.put('workspace_mode', 'rw');
+        await prefs.flush();
+        this.importStatus = 'Workspace: ' + parentUri;
+      }
+    } catch (e) {
+      console.error('[Settings] pickWorkspace failed: ' + JSON.stringify(e));
+      this.importStatus = 'Workspace select failed';
+    }
+  }
+
   async saveConfig(): Promise<void> {
     if (!this.prefs) return;
     if (!this.apiKey || !this.baseUrl) return;
@@ -147,6 +286,7 @@ export struct SettingsPage {
   }
 
   build() {
+    Scroll() {
     Column({ space: 12 }) {
       Text('AI Settings')
         .fontSize(18)
@@ -320,11 +460,49 @@ export struct SettingsPage {
           .fontSize(13)
       }.width('100%')
 
+      // ── Import Skills/Plugins ──
+      Text('Skills & Workspace').fontSize(12).fontColor('#999').margin({ top: 20, bottom: 4 })
+
+      Button('Import from Device')
+        .fontSize(13).width('100%').height(36)
+        .backgroundColor('#e0e0e0').fontColor('#333')
+        .onClick(() => this.pickAndImportFolder())
+
+      Button('Select Workspace Dir')
+        .fontSize(13).width('100%').height(36)
+        .backgroundColor('#e0e0e0').fontColor('#333')
+        .margin({ top: 4 })
+        .onClick(() => this.pickWorkspaceDir())
+
+      if (this.importStatus !== '') {
+        Text(this.importStatus)
+          .fontSize(11)
+          .fontColor(this.importStatus.indexOf('Failed') >= 0 ? '#e74c3c' : '#4CAF50')
+          .margin({ top: 4 })
+      }
+
+      // ── Quick Skill Create ──
+      Text('Or Create Skill').fontSize(12).fontColor('#999').margin({ top: 12, bottom: 4 })
+      TextInput({ text: $$this.skillName, placeholder: 'Skill name (e.g. my-skill)' })
+        .fontSize(12).width('100%').height(32)
+      TextInput({ text: $$this.skillDesc, placeholder: 'Description' })
+        .fontSize(12).width('100%').height(32).margin({ top: 4 })
+      TextInput({ text: $$this.skillBody, placeholder: 'Skill body (instructions for AI)' })
+        .fontSize(12).width('100%').height(60).margin({ top: 4 })
+      Button('Create')
+        .fontSize(13).width('100%').height(36)
+        .backgroundColor('#e0e0e0').fontColor('#333')
+        .onClick(() => this.pickAndImportFolder())
+
       Button(this.saved ? '✓ Saved' : 'Save Configuration')
         .fontSize(14)
         .onClick(() => this.saveConfig())
     }
     .width('100%')
     .padding(14)
+  }
+  .width('100%')
+  .scrollable(ScrollDirection.Vertical)
+  .scrollBar(BarState.Auto)
   }
 }

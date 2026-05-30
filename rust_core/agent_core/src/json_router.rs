@@ -24,6 +24,19 @@ pub fn get_config() -> serde_json::Value {
     AGENT_CONFIG.read().unwrap().clone()
 }
 
+/// Write content to path only if the file does not already exist.
+/// Used to seed defaults on first launch without overwriting user changes.
+fn write_default_if_missing(unify_root: &str, file_name: &str, content: Option<&str>) {
+    if let Some(data) = content {
+        if !data.is_empty() {
+            let path = format!("{}/{}", unify_root, file_name);
+            if !std::path::Path::new(&path).exists() {
+                let _ = std::fs::write(&path, data);
+            }
+        }
+    }
+}
+
 pub fn dispatch(action: &str, args_json: &str) -> String {
     let request: Result<AgentRequest, _> = serde_json::from_str(args_json);
 
@@ -37,14 +50,31 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
             match serde_json::from_str::<serde_json::Value>(args_json) {
                 Ok(args) => {
                     let files_dir = args["files_dir"].as_str().unwrap_or("");
+                    // Ensure .unify/ root directory exists
+                    let unify_root = format!("{}/.unify", files_dir);
+                    let _ = std::fs::create_dir_all(&unify_root);
+                    // Write default config files from host-provided defaults (rawfile snapshots)
+                    // Only write if the file doesn't already exist (don't overwrite user edits).
+                    write_default_if_missing(&unify_root, "config.json", args["defaults"]["config"].as_str());
+                    write_default_if_missing(&unify_root, "themes.json", args["defaults"]["themes"].as_str());
+                    write_default_if_missing(&unify_root, "providers.json", args["defaults"]["providers"].as_str());
+                    // Initialize subsystems
                     crate::agent::session::init_session_manager(files_dir);
-                    // Initialize memory store alongside session manager
-                    crate::agent::memory::init_memory_store(&format!("{}/.memory", files_dir));
-                    // Extract embedded skills to filesystem
-                    let skills_dir = format!("{}/skills", files_dir);
-                    let _ = crate::agent::skill_loader::extract_embedded_skills(
-                        std::path::Path::new(&skills_dir),
-                    );
+                    crate::agent::memory::init_memory_store(&format!("{}/.unify/memory", files_dir));
+                    let skills_dir = format!("{}/.unify/skills", files_dir);
+                    let skills_path = std::path::Path::new(&skills_dir);
+                    let _ = crate::agent::skill_loader::extract_embedded_skills(skills_path);
+                    // Scan for user-created skills
+                    if let Ok(found) = crate::agent::skill_loader::FileSystemSkillLoader::scan(skills_path) {
+                        if !found.is_empty() {
+                            let mut registry = crate::agent::skills::SKILLS.write().unwrap();
+                            for skill in found {
+                                registry.register_dynamic(skill);
+                            }
+                        }
+                    }
+                    let plugins_dir = format!("{}/.unify/plugins", files_dir);
+                    crate::agent::plugins::init_plugin_loader(std::path::Path::new(&plugins_dir));
                     AgentResponse {
                         status: "ok".into(),
                         message: Some("Session, memory store, and skills initialized".into()),
@@ -239,6 +269,12 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
         "configure" => {
             match serde_json::from_str::<serde_json::Value>(args_json) {
                 Ok(cfg) => {
+                    // Persist to .unify/config.json for user transparency
+                    let sandbox = cfg["sandbox_root"].as_str().unwrap_or(".");
+                    let path = format!("{}/.unify/config.json", sandbox);
+                    if let Ok(json) = serde_json::to_string_pretty(&cfg) {
+                        let _ = std::fs::write(&path, &json);
+                    }
                     if let Ok(mut w) = AGENT_CONFIG.write() {
                         *w = cfg;
                     }
@@ -252,6 +288,72 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                     status: "error".into(),
                     message: None,
                     error: Some(format!("Invalid config JSON: {}", e)),
+                },
+            }
+        }
+        "update_providers" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(args) => {
+                    let sandbox = args["sandbox_root"].as_str().unwrap_or(".");
+                    let data = args["data"].as_str().unwrap_or("");
+                    if data.is_empty() {
+                        AgentResponse {
+                            status: "error".into(),
+                            message: None,
+                            error: Some("Missing 'data' field for providers".into()),
+                        }
+                    } else {
+                        let path = format!("{}/.unify/providers.json", sandbox);
+                        match std::fs::write(&path, data) {
+                            Ok(_) => AgentResponse {
+                                status: "ok".into(),
+                                message: Some("Providers updated".into()),
+                                error: None,
+                            },
+                            Err(e) => AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some(format!("Failed to write providers: {}", e)),
+                            },
+                        }
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid args: {}", e)),
+                },
+            }
+        }
+        "reload_imports" => {
+            match serde_json::from_str::<serde_json::Value>(args_json) {
+                Ok(args) => {
+                    let files_dir = args["files_dir"].as_str().unwrap_or("");
+                    let skills_dir = format!("{}/.unify/skills", files_dir);
+                    let path = std::path::Path::new(&skills_dir);
+                    // Re-register embedded skills
+                    let _ = crate::agent::skill_loader::extract_embedded_skills(path);
+                    // Scan for user-created skills and register them
+                    if let Ok(found) = crate::agent::skill_loader::FileSystemSkillLoader::scan(path) {
+                        if !found.is_empty() {
+                            let mut registry = crate::agent::skills::SKILLS.write().unwrap();
+                            for skill in found {
+                                registry.register_dynamic(skill);
+                            }
+                        }
+                    }
+                    let plugins_dir = format!("{}/.unify/plugins", files_dir);
+                    crate::agent::plugins::init_plugin_loader(std::path::Path::new(&plugins_dir));
+                    AgentResponse {
+                        status: "ok".into(),
+                        message: Some("Skills and plugins reloaded".into()),
+                        error: None,
+                    }
+                }
+                Err(e) => AgentResponse {
+                    status: "error".into(),
+                    message: None,
+                    error: Some(format!("Invalid args: {}", e)),
                 },
             }
         }

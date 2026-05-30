@@ -1,6 +1,11 @@
 import { UIAbility, Want, AbilityConstant } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import picker from '@ohos.file.picker';
+
+const p = new picker.DocumentViewPicker(getContext(this));
+const opts: picker.DocumentSelectOptions = {};
+
 
 const DOMAIN = 0x0001;
 const TAG = 'HmosAgent';

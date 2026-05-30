@@ -589,7 +589,8 @@ pub fn agent_loop_run(
             }
 
             // ── Permission Pipeline (7.2) ──
-            match crate::agent::permission::check_permission(&tc.name, &tc.arguments) {
+            let sandbox_root = config["sandbox_root"].as_str().unwrap_or("");
+            match crate::agent::permission::check_permission(&tc.name, &tc.arguments, sandbox_root) {
                 crate::agent::permission::PermissionResult::Deny(reason) => {
                     tool_result_parts.push(crate::types::message::ContentPart::ToolResult {
                         id: tc.id.clone(),

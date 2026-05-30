@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::RwLock;
 
 // ── Memory types (V2: 7 variants) ──
 
@@ -114,13 +115,68 @@ pub trait MemoryStorage: Send + Sync {
 
 pub struct FileSystemMemoryStore {
     dir: PathBuf,
+    /// Token → entry names, rebuilt on init and updated on save/delete.
+    token_index: RwLock<HashMap<String, Vec<String>>>,
 }
 
 impl FileSystemMemoryStore {
     pub fn new(memory_dir: &str) -> Self {
         let dir = PathBuf::from(memory_dir);
         fs::create_dir_all(&dir).ok();
-        Self { dir }
+        let store = Self {
+            dir,
+            token_index: RwLock::new(HashMap::new()),
+        };
+        store.build_index();
+        store
+    }
+
+    /// Tokenize text: lowercase, split on whitespace, keep tokens >= 2 chars.
+    fn tokenize(text: &str) -> Vec<String> {
+        text.to_lowercase()
+            .split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == ':' || c == ';')
+            .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|t| t.len() >= 2)
+            .collect()
+    }
+
+    /// Index a single entry's tokens into the in-memory index.
+    fn index_entry(&self, name: &str, body: &str, description: &str) {
+        let tokens = Self::tokenize(&format!("{} {}", description, body));
+        let mut index = self.token_index.write().unwrap();
+        for token in tokens {
+            index.entry(token).or_default().push(name.to_string());
+        }
+        // Deduplicate per entry
+        for names in index.values_mut() {
+            names.sort();
+            names.dedup();
+        }
+    }
+
+    /// Rebuild the token index from all on-disk memory files.
+    fn build_index(&self) {
+        self.token_index.write().unwrap().clear();
+        if let Ok(entries) = fs::read_dir(&self.dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let file_name = path.file_name().unwrap().to_string_lossy().to_string();
+                if file_name == "MEMORY.md"
+                    || path.extension().and_then(|e| e.to_str()) != Some("md")
+                {
+                    continue;
+                }
+                if let Ok(content) = fs::read_to_string(&path) {
+                    if let Ok(memory) = Self::parse_memory_file(&content, &file_name) {
+                        self.index_entry(
+                            &memory.frontmatter.name,
+                            &memory.body,
+                            &memory.frontmatter.description,
+                        );
+                    }
+                }
+            }
+        }
     }
 
     fn ensure_dir(&self) -> Result<(), String> {
@@ -282,6 +338,7 @@ impl MemoryStorage for FileSystemMemoryStore {
             .map_err(|e| format!("Failed to write memory: {}", e))?;
 
         self.update_index(&frontmatter, &file_name)?;
+        self.index_entry(name, body, description);
 
         Ok(format!("Memory '{}' saved.", name))
     }
@@ -333,9 +390,50 @@ impl MemoryStorage for FileSystemMemoryStore {
     }
 
     fn search(&self, query: &str) -> Result<Vec<MemoryEntry>, String> {
-        let mut results = Vec::new();
         let query_lower = query.to_lowercase();
+        let query_tokens = Self::tokenize(query);
+        let mut results = Vec::new();
 
+        if !query_tokens.is_empty() {
+            let index = self.token_index.read().unwrap();
+            if !index.is_empty() {
+            // Token index path: intersect candidate sets for each query token
+            let mut candidates: Option<Vec<String>> = None;
+            for token in &query_tokens {
+                if let Some(names) = index.get(token) {
+                    match candidates {
+                        None => candidates = Some(names.clone()),
+                        Some(ref existing) => {
+                            let intersection: Vec<String> = existing
+                                .iter()
+                                .filter(|n| names.contains(n))
+                                .cloned()
+                                .collect();
+                            candidates = Some(intersection);
+                        }
+                    }
+                }
+            }
+
+            // Load only candidate files and verify with full-text match
+            if let Some(candidate_names) = candidates {
+                for name in &candidate_names {
+                    let file_name = format!("{}.md", name);
+                    let path = self.dir.join(&file_name);
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        if content.to_lowercase().contains(&query_lower) {
+                            if let Ok(memory) = Self::parse_memory_file(&content, &file_name) {
+                                results.push(memory);
+                            }
+                        }
+                    }
+                }
+                return Ok(results);
+            }
+            } // index.is_empty → fall through to fallback
+        }
+
+        // Fallback: linear scan (cold start before index is built, or empty query)
         if let Ok(entries) = fs::read_dir(&self.dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -513,6 +611,47 @@ mod tests {
         assert_eq!(mem.frontmatter.memory_type, MemoryType::Task);
     }
 
+    #[test]
+    fn test_token_index_search() {
+        let (store, _dir) = setup();
+        store.save("rust-tips", "Rust coding", MemoryType::Knowledge, "Use Arc for shared state.").unwrap();
+        store.save("hmos-tips", "HarmonyOS tips", MemoryType::Knowledge, "ArkUI V2 does not support StorageLink.").unwrap();
+        store.save("wasm-tips", "WASM notes", MemoryType::Knowledge, "WASM has no threads. Use OnceLock.").unwrap();
+
+        // Token-index-assisted search should find Rust-related entries
+        let results = store.search("shared state").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].frontmatter.name, "rust-tips");
+
+        // Search should find the HarmonyOS entry
+        let results = store.search("StorageLink").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].frontmatter.name, "hmos-tips");
+
+        // Search with common token should find multiple
+        let results = store.search("tips").unwrap();
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_index_rebuilds_on_init() {
+        let dir = std::env::temp_dir().join(format!("hmos_mem_rebuild_{}", rand_id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        // Pre-create a memory file on disk
+        let content = "---\nname: pre-existing\ndescription: Pre desc\ntype: knowledge\n---\n\nPre-existing body content.";
+        fs::write(dir.join("pre-existing.md"), content).unwrap();
+
+        // Create store — build_index should pick up the pre-existing file
+        let store = FileSystemMemoryStore::new(dir.to_str().unwrap());
+        let results = store.search("Pre-existing").unwrap();
+        assert!(!results.is_empty());
+        assert_eq!(results[0].frontmatter.name, "pre-existing");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
     /// Integration test: simulate the actual tool handler call path
     /// (init_memory_store → with_memory_store → save/search/list).
     /// This catches the bug where `init_memory_store` is never called before tools are used.
@@ -522,9 +661,9 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
 
         // Step 1: init global store (simulates json_router "init_session")
-        // The json_router calls init_memory_store(&format!("{}/.memory", files_dir)),
-        // so the argument already includes the ".memory" segment
-        let memory_dir = dir.join(".memory");
+        // The json_router calls init_memory_store(&format!("{}/.unify/memory", files_dir)),
+        // so the argument already includes the ".unify/memory" segment
+        let memory_dir = dir.join(".unify/memory");
         init_memory_store(memory_dir.to_str().unwrap());
 
         // Step 2: call save via with_memory_store (simulates memory_save_handler)

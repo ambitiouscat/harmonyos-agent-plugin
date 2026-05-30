@@ -118,10 +118,8 @@ impl AgentSpawner for ThreadPoolSpawner {
                 return;
             }
 
-            // Sub-agent execution: spawn a fresh agent loop with limited tools.
-            // In V1, this delegates to the existing subagent_handler via the
-            // subagent tool, maintaining backward compatibility.
-            let result = crate::tools::subagent::spawn_subagent(&desc, &wd, depth);
+            // Run the shared sub-agent inner logic directly.
+            let result = run_subagent_inner(&desc, &wd, depth);
             let _ = tx.send(result);
         });
 
@@ -151,6 +149,112 @@ impl AgentSpawner for WasmAgentSpawner {
     fn spawn(&self, _config: AgentConfig) -> Result<AgentHandle, String> {
         Err("SubAgent spawning is not supported in WASM environment.".into())
     }
+}
+
+// ── Shared sub-agent runner (used by both ThreadPoolSpawner and subagent.rs) ──
+
+/// Execute a sub-agent task in the current thread.
+/// Builds a fresh ToolRegistry, messages, host, and runs the agent loop.
+/// Returns the final text summary from the assistant's last message.
+pub fn run_subagent_inner(description: &str, workdir: &PathBuf, _depth: usize) -> Result<String, String> {
+    use crate::agent::loop_engine::agent_loop_run;
+    use crate::agent::tool_registry::ToolRegistry;
+    use crate::agent::platform_harmonyos::HarmonyOSHost;
+
+    // Build a fresh ToolRegistry with only safe tools (no SubAgent).
+    let mut registry = ToolRegistry::new(workdir.to_str().unwrap_or("."));
+    register_sub_tools(&mut registry);
+
+    // Build fresh messages with the sub-agent task.
+    let mut messages = vec![crate::types::message::Message {
+        id: None,
+        role: "user".into(),
+        parts: vec![crate::types::message::ContentPart::Text {
+            text: format!(
+                "{}\n\nComplete this task and return a concise summary. Do not delegate further.",
+                description
+            ),
+        }],
+    }];
+
+    let config = crate::json_router::get_config();
+    let sandbox_root = config["sandbox_root"].as_str().unwrap_or(".");
+    let api_key = config["api_key"].as_str().unwrap_or("");
+    let api_base_url = config["base_url"].as_str().unwrap_or("https://api.anthropic.com");
+    let host = HarmonyOSHost::new(sandbox_root, api_key, api_base_url);
+
+    // Suppress streaming output from sub-agent.
+    let on_text = |_text: &str| {};
+    let on_tool = |_name: &str, _args: &str| {};
+
+    // Run the agent loop with a fresh 30-turn limit.
+    let outcome = agent_loop_run(&host, &config, &mut messages, &registry, on_text, on_tool)?;
+
+    // Collect the final assistant text as a summary.
+    let summary = messages
+        .iter()
+        .rev()
+        .find(|m| m.role == "assistant")
+        .and_then(|m| {
+            m.parts.iter().find_map(|p| match p {
+                crate::types::message::ContentPart::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+        })
+        .unwrap_or_else(|| format!("Sub-agent completed: {:?}", outcome));
+
+    Ok(summary)
+}
+
+/// Register tools available to sub-agents (no SubAgent to prevent recursion).
+pub fn register_sub_tools(registry: &mut crate::agent::tool_registry::ToolRegistry) {
+    use crate::agent::tool_registry::ToolDef;
+
+    registry.register(ToolDef {
+        name: "read".into(),
+        description: "Read a file from the filesystem.".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": { "file_path": {"type": "string"} },
+            "required": ["file_path"]
+        }),
+        read_only: true,
+        concurrent_safe: true,
+        handler: crate::tools::file::read_handler,
+    });
+
+    registry.register(ToolDef {
+        name: "write".into(),
+        description: "Write content to a file.".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string"},
+                "content": {"type": "string"}
+            },
+            "required": ["file_path", "content"]
+        }),
+        read_only: false,
+        concurrent_safe: false,
+        handler: crate::tools::file::write_handler,
+    });
+
+    registry.register(ToolDef {
+        name: "edit".into(),
+        description: "Edit a file by replacing an exact string match.".into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string"},
+                "old_string": {"type": "string"},
+                "new_string": {"type": "string"}
+            },
+            "required": ["file_path", "old_string", "new_string"]
+        }),
+        read_only: false,
+        concurrent_safe: false,
+        handler: crate::tools::edit::edit_handler,
+    });
 }
 
 #[cfg(test)]

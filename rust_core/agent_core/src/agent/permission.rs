@@ -46,10 +46,14 @@ const FILE_DENY_PATTERNS: &[&str] = &[
 // ── Rule matching (Gate 2) ──
 
 /// Rules that trigger user approval (not outright denial).
-fn check_rules(tool_name: &str, args: &Value) -> Option<String> {
+fn check_rules(tool_name: &str, args: &Value, sandbox_root: &str) -> Option<String> {
     match tool_name {
         "write" | "edit" => {
             let path = args["file_path"].as_str().unwrap_or("");
+            // Within sandbox root: always Allow (the OS already confines us)
+            if !sandbox_root.is_empty() && path.starts_with(sandbox_root) {
+                return None;
+            }
             // Writing outside workspace-relative paths that look suspicious
             if path.starts_with('/') && !path.starts_with("/tmp/") {
                 return Some(format!(
@@ -123,14 +127,15 @@ fn check_deny_list(tool_name: &str, args: &Value) -> Option<String> {
 }
 
 /// Main entry point: check permission for a tool call.
-pub fn check_permission(tool_name: &str, args: &Value) -> PermissionResult {
+/// `sandbox_root` allows sandbox-internal writes to skip the AskUser prompt.
+pub fn check_permission(tool_name: &str, args: &Value, sandbox_root: &str) -> PermissionResult {
     // Gate 1: DenyList
     if let Some(reason) = check_deny_list(tool_name, args) {
         return PermissionResult::Deny(reason);
     }
 
     // Gate 2: RuleMatch → trigger user approval
-    if let Some(reason) = check_rules(tool_name, args) {
+    if let Some(reason) = check_rules(tool_name, args, sandbox_root) {
         return PermissionResult::AskUser {
             tool_name: tool_name.to_string(),
             args_preview: serde_json::to_string(args).unwrap_or_default(),
@@ -213,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_deny_list_bash_sudo() {
-        let result = check_permission("bash", &serde_json::json!({"command": "sudo bash"}));
+        let result = check_permission("bash", &serde_json::json!({"command": "sudo bash"}), "");
         match result {
             PermissionResult::Deny(reason) => assert!(reason.contains("sudo")),
             _ => panic!("expected Deny"),
@@ -225,6 +230,7 @@ mod tests {
         let result = check_permission(
             "read",
             &serde_json::json!({"file_path": "/etc/passwd"}),
+            "",
         );
         match result {
             PermissionResult::Deny(reason) => assert!(reason.contains("passwd")),
@@ -234,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_rule_ask_user_bash_rm() {
-        let result = check_permission("bash", &serde_json::json!({"command": "rm file.txt"}));
+        let result = check_permission("bash", &serde_json::json!({"command": "rm file.txt"}), "");
         match result {
             PermissionResult::AskUser { reason, .. } => {
                 assert!(reason.contains("Delete"));
@@ -245,10 +251,51 @@ mod tests {
 
     #[test]
     fn test_allow_safe_bash() {
-        let result = check_permission("bash", &serde_json::json!({"command": "echo hello"}));
+        let result = check_permission("bash", &serde_json::json!({"command": "echo hello"}), "");
         match result {
             PermissionResult::Allow => {}
             _ => panic!("expected Allow for safe command"),
+        }
+    }
+
+    #[test]
+    fn test_in_sandbox_write_allowed() {
+        let result = check_permission(
+            "write",
+            &serde_json::json!({"file_path": "/data/storage/el2/base/files/.unify/skills/test.md"}),
+            "/data/storage/el2/base/files",
+        );
+        match result {
+            PermissionResult::Allow => {}
+            other => panic!("expected Allow for in-sandbox write, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_out_of_sandbox_write_triggers_ask_user() {
+        let result = check_permission(
+            "write",
+            &serde_json::json!({"file_path": "/system/etc/hosts"}),
+            "/data/storage/el2/base/files",
+        );
+        match result {
+            PermissionResult::AskUser { reason, .. } => {
+                assert!(reason.contains("absolute path"));
+            }
+            other => panic!("expected AskUser for out-of-sandbox write, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_deny_list_still_blocks_in_sandbox() {
+        let result = check_permission(
+            "write",
+            &serde_json::json!({"file_path": "/data/storage/el2/base/files/id_rsa"}),
+            "/data/storage/el2/base/files",
+        );
+        match result {
+            PermissionResult::Deny(reason) => assert!(reason.contains("deny-list")),
+            _ => panic!("expected Deny for sensitive file in sandbox"),
         }
     }
 

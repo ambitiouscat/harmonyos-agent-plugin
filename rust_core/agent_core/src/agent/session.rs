@@ -29,7 +29,7 @@ pub struct SessionManager {
 
 impl SessionManager {
     pub fn new(files_dir: &str) -> Self {
-        let base_dir = PathBuf::from(files_dir).join("sessions");
+        let base_dir = PathBuf::from(files_dir).join(".unify/sessions");
         let _ = fs::create_dir_all(&base_dir);
         Self { base_dir }
     }

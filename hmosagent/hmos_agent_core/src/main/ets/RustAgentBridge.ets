@@ -5,6 +5,11 @@ interface ChatMessageItem {
   content: string;
 }
 
+interface InitSessionArgs {
+  files_dir: string;
+  defaults?: Record<string, string>;
+}
+
 type StreamCallback = (data: string, eventType: number) => void;
 type IoCallback = (url: string, body: string) => string;
 type OfflineCallback = (isOffline: boolean) => void;
@@ -126,8 +131,22 @@ export class RustAgentBridge {
    * Initialize the session manager with the host's sandbox files directory.
    * Must be called once after bridge init to enable session CRUD.
    */
-  public initSession(filesDir: string): string {
-    return this.call('init_session', JSON.stringify({ files_dir: filesDir }));
+  public initSession(filesDir: string, defaults?: Record<string, string>): string {
+    const args: InitSessionArgs = { files_dir: filesDir };
+    if (defaults) {
+      args.defaults = defaults;
+    }
+    return this.call('init_session', JSON.stringify(args));
+  }
+
+  /** Update providers.json from remote fetch result. */
+  public updateProviders(filesDir: string, data: string): string {
+    return this.call('update_providers', JSON.stringify({ sandbox_root: filesDir, data: data }));
+  }
+
+  /** Reload skills and plugins after import. */
+  public reloadImports(filesDir: string): string {
+    return this.call('reload_imports', JSON.stringify({ files_dir: filesDir }));
   }
 
   /**
