@@ -89,11 +89,11 @@ export struct ChatView {
   @Local theme: ThemeConfig = getThemeLoader().getCurrent();
   private themeLoader = getThemeLoader();
 
-  aboutToAppear(): void {
+  async aboutToAppear(): Promise<void> {
     this.themeLoader.load(getContext(this));
     this.theme = this.themeLoader.getCurrent();
     this.loadAppConfig();
-    this.initBridge();
+    await this.initBridge();
     getPhraseLoader().load(getContext(this));
     this.bridge.onOfflineChange((offline: boolean) => {
       this.isOffline = offline;
@@ -307,7 +307,8 @@ export struct ChatView {
         api_key: apiKey,
         base_url: baseUrl,
         model: model,
-        max_tokens: 32000
+        max_tokens: 32000,
+        sandbox_root: getContext(this).filesDir
       }));
       console.info('[ChatView] Config applied');
     } catch (e) {
@@ -319,14 +320,9 @@ export struct ChatView {
     this.showSettings = false;
     await this.initBridge();
     await this.applyConfig();
-    // Reload imports if user imported skills/plugins
-    const needReload = AppStorage.get('import_reload_needed') as boolean;
-    if (needReload) {
-      const filesDir = getContext(this).filesDir;
-      this.bridge.reloadImports(filesDir);
-      this.loadSkills();
-      AppStorage.setOrCreate('import_reload_needed', false);
-    }
+    // Refresh skill list cache — SettingsPage calls reloadImports directly
+    // after skill creation/import, so the Rust registry is already up-to-date.
+    this.loadSkills();
   }
 
   applyDelta(deltaJson: string): void {

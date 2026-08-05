@@ -7,11 +7,11 @@
         "material": {
           "certpath": "C:\\Users\\s\\.ohos\\config\\default_hmosagent_ih-xdzekAX6oxn-2E7-UFIaMxKkKmuzvKjiPwAZ_Q68=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001B7756840FD6845528285E8DBA076BD6A5C5AD2E98D5C800F1D74DF55DD9527948ECF1EE826A6F8B",
+          "keyPassword": "0000001B042410237B8AB2B8AD64C809E9E7CB6AE6896841E4349D928C3E0B7DEAEEE51A462B5AA61CD498",
           "profile": "C:\\Users\\s\\.ohos\\config\\default_hmosagent_ih-xdzekAX6oxn-2E7-UFIaMxKkKmuzvKjiPwAZ_Q68=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "C:\\Users\\s\\.ohos\\config\\default_hmosagent_ih-xdzekAX6oxn-2E7-UFIaMxKkKmuzvKjiPwAZ_Q68=.p12",
-          "storePassword": "0000001BCF044B03ED33B8853E1C13C9D2398355FEF5EE0A3647192E662AE6316ECF586AD337E847218D7C"
+          "storePassword": "0000001BC508D3912C073D716A951A44A2E893A6CFE1BE513A0EB600258B001145966821EBCE27C041F9C7"
         }
       }
     ],

@@ -1,4 +1,4 @@
-use crate::agent::skills::{Skill, SkillCategory, SkillContext, SkillParam, SKILLS};
+use crate::agent::skills::{Skill, SkillCategory, SkillContext, SkillParam};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -149,48 +149,49 @@ impl FileSystemSkillLoader {
     }
 }
 
-/// Register bundled skills directly into the global SkillsRegistry.
-/// Bypasses filesystem to avoid platform-specific storage issues.
-pub fn extract_embedded_skills(_skills_dir: &Path) -> Result<usize, String> {
-    // Write files to disk for persistence (best-effort)
-    if let Ok(()) = std::fs::create_dir_all(_skills_dir) {
-        let embedded: &[(&str, &str)] = &[
-            ("/summarize", BUNDLED_SKILL_SUMMARIZE),
-            ("/frontend-design", BUNDLED_SKILL_FRONTEND_DESIGN),
-            ("/find-skills", BUNDLED_SKILL_FIND_SKILLS),
-        ];
-        for (name, content) in embedded {
-            let skill_dir = _skills_dir.join(name.trim_start_matches('/'));
-            std::fs::create_dir_all(&skill_dir).ok();
-            std::fs::write(skill_dir.join("SKILL.md"), content).ok();
+/// Seed bundled skills into the skills directory on first launch.
+/// Uses a `.seeded` marker file to ensure seeds are only written once —
+/// subsequent launches respect user modifications/deletions.
+/// Skills are NOT registered in memory here; FileSystemSkillLoader::scan()
+/// picks them up from disk like any user-created skill.
+pub fn extract_embedded_skills(skills_dir: &Path) -> Result<usize, String> {
+    // Create skills directory first — needed before marker file can be created
+    std::fs::create_dir_all(skills_dir)
+        .map_err(|e| format!("Failed to create skills dir: {}", e))?;
+
+    let seeded_marker = skills_dir.join(".seeded");
+
+    // Atomic check-and-create: try to create the marker file exclusively.
+    // If it already exists (previous launch seeded successfully), bail out.
+    // create_new(true) eliminates the TOCTOU window between exists() and write().
+    // Directory already exists (created above), so ENOENT means only marker absence.
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&seeded_marker)
+    {
+        Ok(_) => {} // Marker created — first launch, proceed with seeding
+        Err(_) => return Ok(0), // Marker exists — already seeded
+    }
+
+    let embedded: &[(&str, &str)] = &[
+        ("/summarize", BUNDLED_SKILL_SUMMARIZE),
+        ("/frontend-design", BUNDLED_SKILL_FRONTEND_DESIGN),
+        ("/find-skills", BUNDLED_SKILL_FIND_SKILLS),
+    ];
+
+    let mut seeded = 0usize;
+    for (name, content) in embedded {
+        let skill_dir = skills_dir.join(name.trim_start_matches('/'));
+        std::fs::create_dir_all(&skill_dir).ok();
+        if std::fs::write(skill_dir.join("SKILL.md"), content).is_ok() {
+            seeded += 1;
         }
     }
 
-    // Register directly into SkillsRegistry (does not depend on filesystem)
-    let mut registry = SKILLS.write().unwrap();
-    registry.register_dynamic(Box::new(FileSkill {
-        name: "/summarize".into(),
-        description: "Summarize or extract text/transcripts from URLs, podcasts, and local files".into(),
-        category: SkillCategory::Utility,
-        params: vec![],
-        body: BUNDLED_SKILL_SUMMARIZE.into(),
-    }));
-    registry.register_dynamic(Box::new(FileSkill {
-        name: "/frontend-design".into(),
-        description: "Create distinctive, production-grade frontend interfaces with high design quality".into(),
-        category: SkillCategory::Implementation,
-        params: vec![],
-        body: BUNDLED_SKILL_FRONTEND_DESIGN.into(),
-    }));
-    registry.register_dynamic(Box::new(FileSkill {
-        name: "/find-skills".into(),
-        description: "Find and discover available skills for extending agent capabilities".into(),
-        category: SkillCategory::Utility,
-        params: vec![],
-        body: BUNDLED_SKILL_FIND_SKILLS.into(),
-    }));
-
-    Ok(3)
+    // Marker file already created atomically by create_new(true) above.
+    // Its mere existence prevents re-seeding on future launches.
+    Ok(seeded)
 }
 
 // Bundled skill contents (switch to include_str! after rustc 1.95 ICE is resolved)

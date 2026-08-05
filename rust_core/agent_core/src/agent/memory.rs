@@ -122,7 +122,9 @@ pub struct FileSystemMemoryStore {
 impl FileSystemMemoryStore {
     pub fn new(memory_dir: &str) -> Self {
         let dir = PathBuf::from(memory_dir);
-        fs::create_dir_all(&dir).ok();
+        if let Err(e) = fs::create_dir_all(&dir) {
+            eprintln!("[memory] ERROR: create_dir_all '{}' failed: {}", dir.display(), e);
+        }
         let store = Self {
             dir,
             token_index: RwLock::new(HashMap::new()),

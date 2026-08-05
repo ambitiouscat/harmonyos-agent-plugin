@@ -31,7 +31,9 @@ fn write_default_if_missing(unify_root: &str, file_name: &str, content: Option<&
         if !data.is_empty() {
             let path = format!("{}/{}", unify_root, file_name);
             if !std::path::Path::new(&path).exists() {
-                let _ = std::fs::write(&path, data);
+                if let Err(e) = std::fs::write(&path, data) {
+                    eprintln!("[json_router] ERROR: write_default '{}' failed: {}", path, e);
+                }
             }
         }
     }
@@ -52,7 +54,32 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                     let files_dir = args["files_dir"].as_str().unwrap_or("");
                     // Ensure .unify/ root directory exists
                     let unify_root = format!("{}/.unify", files_dir);
-                    let _ = std::fs::create_dir_all(&unify_root);
+                    if let Err(e) = std::fs::create_dir_all(&unify_root) {
+                        eprintln!("[json_router] ERROR: create_dir_all '{}' failed: {}", unify_root, e);
+                    }
+                    // Create workspace subdirectory for AI file operations
+                    if let Err(e) = std::fs::create_dir_all(&format!("{}/workspace", unify_root)) {
+                        eprintln!("[json_router] ERROR: create_dir_all '{}/workspace' failed: {}", unify_root, e);
+                    }
+                    eprintln!("[json_router] .unify root: {}", unify_root);
+                    // Write README to explain what .unify/ is
+                    let readme_path = format!("{}/README.md", unify_root);
+                    if !std::path::Path::new(&readme_path).exists() {
+                        if let Err(e) = std::fs::write(&readme_path,
+                            "# .unify/ — HmosAgent Data Directory\n\n\
+                             All AI Agent configuration, skills, plugins, sessions, and memory data live here.\n\n\
+                             - `config.json` — LLM API configuration (api_key, provider, model, base_url)\n\
+                             - `providers.json` — AI provider/model registry\n\
+                             - `themes.json` — UI theme definitions\n\
+                             - `skills/` — Installed agent skills (one subdirectory per skill, each with a `SKILL.md`)\n\
+                             - `plugins/` — Installed plugins (one subdirectory per plugin, each with a `plugin.json`)\n\
+                             - `sessions/` — Saved conversation sessions\n\
+                             - `memory/` — Agent memory storage\n\
+                             - `workspace/` — File workspace for AI read/write operations\n"
+                        ) {
+                            eprintln!("[json_router] ERROR: write README.md '{}' failed: {}", readme_path, e);
+                        }
+                    }
                     // Write default config files from host-provided defaults (rawfile snapshots)
                     // Only write if the file doesn't already exist (don't overwrite user edits).
                     write_default_if_missing(&unify_root, "config.json", args["defaults"]["config"].as_str());
@@ -63,21 +90,28 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                     crate::agent::memory::init_memory_store(&format!("{}/.unify/memory", files_dir));
                     let skills_dir = format!("{}/.unify/skills", files_dir);
                     let skills_path = std::path::Path::new(&skills_dir);
+                    // Seed bundled skills on first launch only (no-op if already seeded)
                     let _ = crate::agent::skill_loader::extract_embedded_skills(skills_path);
-                    // Scan for user-created skills
-                    if let Ok(found) = crate::agent::skill_loader::FileSystemSkillLoader::scan(skills_path) {
-                        if !found.is_empty() {
-                            let mut registry = crate::agent::skills::SKILLS.write().unwrap();
+                    // Clear any stale dynamic entries, then scan disk
+                    {
+                        let mut registry = crate::agent::skills::SKILLS.write().unwrap();
+                        registry.clear_dynamic();
+                        // Best-effort scan during init: if the skills directory doesn't
+                        // exist yet or is unreadable, we silently continue with an empty
+                        // dynamic registry (user can import skills later via reload_imports,
+                        // which uses strict error reporting).
+                        if let Ok(found) = crate::agent::skill_loader::FileSystemSkillLoader::scan(skills_path) {
                             for skill in found {
                                 registry.register_dynamic(skill);
                             }
                         }
                     }
+                    let dyn_count = crate::agent::skills::SKILLS.read().unwrap().dynamic_count();
                     let plugins_dir = format!("{}/.unify/plugins", files_dir);
                     crate::agent::plugins::init_plugin_loader(std::path::Path::new(&plugins_dir));
                     AgentResponse {
                         status: "ok".into(),
-                        message: Some("Session, memory store, and skills initialized".into()),
+                        message: Some(format!("Session initialized ({} dynamic skills)", dyn_count)),
                         error: None,
                     }
                 }
@@ -273,7 +307,11 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                     let sandbox = cfg["sandbox_root"].as_str().unwrap_or(".");
                     let path = format!("{}/.unify/config.json", sandbox);
                     if let Ok(json) = serde_json::to_string_pretty(&cfg) {
-                        let _ = std::fs::write(&path, &json);
+                        if let Err(e) = std::fs::write(&path, &json) {
+                            eprintln!("[json_router] ERROR: write config to '{}' failed: {}", path, e);
+                        } else {
+                            eprintln!("[json_router] config saved to: {}", path);
+                        }
                     }
                     if let Ok(mut w) = AGENT_CONFIG.write() {
                         *w = cfg;
@@ -331,22 +369,38 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
                     let files_dir = args["files_dir"].as_str().unwrap_or("");
                     let skills_dir = format!("{}/.unify/skills", files_dir);
                     let path = std::path::Path::new(&skills_dir);
-                    // Re-register embedded skills
+                    // Re-seed bundled skills if needed (no-op if already seeded)
                     let _ = crate::agent::skill_loader::extract_embedded_skills(path);
-                    // Scan for user-created skills and register them
-                    if let Ok(found) = crate::agent::skill_loader::FileSystemSkillLoader::scan(path) {
-                        if !found.is_empty() {
-                            let mut registry = crate::agent::skills::SKILLS.write().unwrap();
-                            for skill in found {
-                                registry.register_dynamic(skill);
+                    // Clear old dynamic entries, then re-scan disk
+                    let skills_loaded;
+                    {
+                        let mut registry = crate::agent::skills::SKILLS.write().unwrap();
+                        registry.clear_dynamic();
+                        match crate::agent::skill_loader::FileSystemSkillLoader::scan(path) {
+                            Ok(found) => {
+                                skills_loaded = found.len();
+                                for skill in found {
+                                    registry.register_dynamic(skill);
+                                }
+                            }
+                            Err(e) => {
+                                return serde_json::to_string(&AgentResponse {
+                                    status: "error".into(),
+                                    message: None,
+                                    error: Some(format!("Skill scan failed: {}", e)),
+                                }).unwrap_or_default();
                             }
                         }
                     }
+                    // Reload plugins
                     let plugins_dir = format!("{}/.unify/plugins", files_dir);
                     crate::agent::plugins::init_plugin_loader(std::path::Path::new(&plugins_dir));
                     AgentResponse {
                         status: "ok".into(),
-                        message: Some("Skills and plugins reloaded".into()),
+                        message: Some(format!(
+                            "Reloaded: {} skills, plugins refreshed",
+                            skills_loaded
+                        )),
                         error: None,
                     }
                 }
@@ -401,6 +455,13 @@ pub fn dispatch(action: &str, args_json: &str) -> String {
 
                     if !messages.is_empty() {
                         let config = AGENT_CONFIG.read().unwrap().clone();
+                        if config.is_null() {
+                            return serde_json::to_string(&AgentResponse {
+                                status: "error".into(),
+                                message: None,
+                                error: Some("Agent not configured. Call 'configure' first.".into()),
+                            }).unwrap_or_default();
+                        }
                         let sandbox_root = config["sandbox_root"]
                             .as_str()
                             .unwrap_or(".")

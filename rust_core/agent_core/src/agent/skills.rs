@@ -143,6 +143,17 @@ impl SkillsRegistry {
         self.dynamic.insert(skill.name().to_string(), skill);
     }
 
+    /// Clear all dynamically registered skills (file-loaded, plugin-loaded).
+    /// Built-in defs are preserved.
+    pub fn clear_dynamic(&mut self) {
+        self.dynamic.clear();
+    }
+
+    /// Count of dynamic skills currently registered.
+    pub fn dynamic_count(&self) -> usize {
+        self.dynamic.len()
+    }
+
     /// Legacy alias for register_def.
     pub fn register(&mut self, def: SkillDef) {
         self.register_def(def);

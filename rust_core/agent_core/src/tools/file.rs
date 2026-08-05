@@ -165,6 +165,9 @@ impl FileTools {
 // ── ToolRegistry handler functions ──
 
 /// Build a FileTools instance from sandbox_root.
+/// The sandbox_root is the app's filesDir — all AI file paths resolve relative to it.
+/// System directories (.unify/skills, .unify/sessions, etc.) are at this level;
+/// the system prompt instructs the AI to use .unify/workspace/ for its own files.
 fn ft(sandbox_root: &str) -> FileTools {
     FileTools::new(sandbox_root)
 }

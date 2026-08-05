@@ -2,6 +2,7 @@ import { preferences } from '@kit.ArkData';
 import { fileIo, picker } from '@kit.CoreFileKit';
 import { getProviderLoader, OpenCodeModel, OpenCodeProvider } from '../provider/ProviderLoader';
 import { getPhraseLoader, CategoryInfo } from '../ui/common/PhraseLoader';
+import { RustAgentBridge } from '../RustAgentBridge';
 
 @ComponentV2
 export struct SettingsPage {
@@ -186,7 +187,9 @@ export struct SettingsPage {
       this.copyDirRecursive(srcUri, destBase);
 
       this.importStatus = `Imported ${hasPluginJson ? 'plugin' : 'skill'}: ${folderName}`;
-      AppStorage.setOrCreate('import_reload_needed', true);
+      // Immediately reload Rust registries
+      RustAgentBridge.getInstance().reloadImports(filesDir);
+      this.onSettingsSaved();
     } catch (e) {
       console.error('[Settings] importFromUri failed: ' + JSON.stringify(e));
       this.importStatus = 'Import failed: ' + (typeof e === 'object' ? JSON.stringify(e) : 'unknown');
@@ -209,7 +212,10 @@ export struct SettingsPage {
       this.skillName = '';
       this.skillDesc = '';
       this.skillBody = '';
-      AppStorage.setOrCreate('import_reload_needed', true);
+      // Immediately reload Rust skill registry so new skill is available
+      RustAgentBridge.getInstance().reloadImports(filesDir);
+      // Also trigger ChatView to refresh its cached skill list
+      this.onSettingsSaved();
     } catch (e) {
       console.error('[Settings] createSkill failed: ' + JSON.stringify(e));
       this.importStatus = 'Failed to create skill';
